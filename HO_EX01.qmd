@@ -1,0 +1,17 @@
+---
+title: "Hands-on Exercise 1"
+author: "Dr. Kam Tin Seong"
+date: "2026-04-10"
+date-modified: last-modified
+format: html
+execute:
+  echo: true
+  warning: false
+---
+
+```{r}
+pacman::p_load(tidyverse)
+
+exam_data <- read.csv("data/Exam_data.csv")
+```
+---
