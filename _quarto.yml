@@ -1,5 +1,6 @@
 project:
   type: website
+  output-dir: _site
 
 website:
   title: "ISSS608-VAA_demo"
@@ -15,8 +16,8 @@ website:
             href: HO_EX03_1.qmd
           - text: "Hands-on Exercise 3.2"
             href: HO_EX03_2.qmd
-          - text: "About"
-            href: about.qmd
+      - text: "About"
+        href: about.qmd
 
 format:
   html:
