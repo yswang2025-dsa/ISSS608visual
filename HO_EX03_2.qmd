@@ -1,0 +1,229 @@
+---
+title: "Hands-on Exercise 3.2"
+format: html
+editor: visual
+---
+
+## Quarto
+
+Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+
+## Running Code
+
+When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
+
+```{r}
+1 + 1
+```
+
+You can add options to executable code like this
+
+```{r}
+#| echo: false
+2 * 2
+```
+
+The `echo: false` option disables the printing of code (only output is displayed).
+
+```{r}
+pacman::p_load(
+  readxl,
+  gifski,
+  gapminder,
+  plotly,
+  gganimate,
+  tidyverse
+)
+```
+
+## Import Data: Method 1
+
+```{r}
+col <- c("Country", "Continent")
+
+globalPop <- read_xls(
+  "data/GlobalPopulation.xls",
+  sheet = "Data"
+) %>%
+  mutate_at(
+    col,
+    as.factor
+  ) %>%
+  mutate(
+    Year = as.integer(Year)
+  )
+```
+
+## Import Data: Method 2
+
+```{r}
+col <- c("Country", "Continent")
+
+globalPop_method2 <- read_xls(
+  "data/GlobalPopulation.xls",
+  sheet = "Data"
+) %>%
+  mutate(
+    across(
+      all_of(col),
+      as.factor
+    )
+  ) %>%
+  mutate(
+    Year = as.integer(Year)
+  )
+```
+
+## Building a static population bubble plot
+
+```{r}
+ggplot(
+  globalPop,
+  aes(
+    x = Old,
+    y = Young,
+    size = Population,
+    colour = Country
+  )
+) +
+  geom_point(
+    alpha = 0.7,
+    show.legend = FALSE
+  ) +
+  scale_colour_manual(
+    values = country_colors
+  ) +
+  scale_size(
+    range = c(2, 12)
+  ) +
+  labs(
+    title = "Year: {frame_time}",
+    x = "% Aged",
+    y = "% Young"
+  )
+```
+
+## Building the animated bubble plot
+
+```{r}
+ggplot(
+  globalPop,
+  aes(
+    x = Old,
+    y = Young,
+    size = Population,
+    colour = Country
+  )
+) +
+  geom_point(
+    alpha = 0.7,
+    show.legend = FALSE
+  ) +
+  scale_colour_manual(
+    values = country_colors
+  ) +
+  scale_size(
+    range = c(2, 12)
+  ) +
+  labs(
+    title = "Year: {frame_time}",
+    x = "% Aged",
+    y = "% Young"
+  ) +
+  transition_time(Year) +
+  ease_aes("linear")
+```
+
+## Building an animated bubble plot: ggplotly() method
+
+```{r}
+gg <- ggplot(
+  globalPop,
+  aes(
+    x = Old,
+    y = Young,
+    size = Population,
+    colour = Country
+  )
+) +
+  geom_point(
+    aes(
+      size = Population,
+      frame = Year
+    ),
+    alpha = 0.7,
+    show.legend = FALSE
+  ) +
+  scale_colour_manual(
+    values = country_colors
+  ) +
+  scale_size(
+    range = c(2, 12)
+  ) +
+  labs(
+    x = "% Aged",
+    y = "% Young"
+  )
+
+ggplotly(gg)
+```
+
+```{r}
+gg <- ggplot(
+  globalPop,
+  aes(
+    x = Old,
+    y = Young,
+    size = Population,
+    colour = Country
+  )
+) +
+  geom_point(
+    aes(
+      size = Population,
+      frame = Year
+    ),
+    alpha = 0.7
+  ) +
+  scale_colour_manual(
+    values = country_colors
+  ) +
+  scale_size(
+    range = c(2, 12)
+  ) +
+  labs(
+    x = "% Aged",
+    y = "% Young"
+  ) +
+  theme(
+    legend.position = "none"
+  )
+
+ggplotly(gg)
+```
+
+## Building an animated bubble plot: plot_ly() method
+
+```{r warning=FALSE}
+bp <- globalPop %>%
+  plot_ly(
+    x = ~Old,
+    y = ~Young,
+    size = ~Population,
+    color = ~Continent,
+    sizes = c(2, 100),
+    frame = ~Year,
+    text = ~Country,
+    hoverinfo = "text",
+    type = "scatter",
+    mode = "markers",
+    marker = list(
+      line = list(width = 0)
+    )
+  ) %>%
+  layout(
+    showlegend = FALSE
+  )
+
+bp
+```
