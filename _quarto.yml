@@ -16,6 +16,14 @@ website:
             href: HO_EX03_1.qmd
           - text: "Hands-on Exercise 3.2"
             href: HO_EX03_2.qmd
+          - text: "Hands-on Exercise 4.1"
+            href: HO_EX04_01.qmd
+          - text: "Hands-on Exercise 4.2"
+            href: HO_EX04_02.qmd
+          - text: "Hands-on Exercise 4.3"
+            href: HO_EX04_03.qmd
+          - text: "Hands-on Exercise 4.4"
+            href: HO_EX04_04.qmd
       - text: "About"
         href: about.qmd
 
