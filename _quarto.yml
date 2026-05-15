@@ -3,7 +3,7 @@ project:
   output-dir: _site
 
 website:
-  title: "ISSS608-VAA_demo"
+  title: "ISSS608"
   navbar:
     left:
       - text: "Hands-on Exercise"
@@ -24,9 +24,22 @@ website:
             href: HO_EX04_03.qmd
           - text: "Hands-on Exercise 4.4"
             href: HO_EX04_04.qmd
+          - text: "Hands-on Exercise 5.1"
+            href: HO_EX05_1.qmd
+          - text: "Hands-on Exercise 5.2"
+            href: HO_EX05_2.qmd
+          - text: "Hands-on Exercise 5.3"
+            href: HO_EX05_3.qmd
+          - text: "Hands-on Exercise 5.4"
+            href: HO_EX05_4.qmd
+          - text: "Hands-on Exercise 5.5"
+            href: HO_EX05_5.qmd
+      - text: "Take-home Exercise"
+        menu:
+          - text: "Take-home Exercise 1"
+            href: TH_EX01.qmd
       - text: "About"
         href: about.qmd
-
 format:
   html:
     theme: cosmo
