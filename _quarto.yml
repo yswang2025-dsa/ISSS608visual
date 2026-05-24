@@ -40,6 +40,8 @@ website:
         menu:
           - text: "Take-home Exercise 1"
             href: TH_EX01.qmd
+          - text: "Motor Insurance Portfolio Insights"
+            href: Executive_Summary_revealjs.qmd
       - text: "About"
         href: about.qmd
 format:

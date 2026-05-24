@@ -1,0 +1,1033 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<script src="site_libs/clipboard/clipboard.min.js"></script>
+<script src="site_libs/quarto-html/tabby.min.js"></script>
+<script src="site_libs/quarto-html/popper.min.js"></script>
+<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
+<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="site_libs/quarto-html/light-border.css" rel="stylesheet">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-7f8f88aac4f3542376d5c11b86a4c14d.css" rel="stylesheet" id="quarto-text-highlighting-styles"><meta charset="utf-8">
+  <meta name="generator" content="quarto-1.9.37">
+
+  <meta name="author" content="Wang Yanshuang">
+  <meta name="dcterms.date" content="2026-05-20">
+  <title>ISSS608 – Motor Insurance Portfolio Insights</title>
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, minimal-ui">
+  <link rel="stylesheet" href="site_libs/revealjs/dist/reset.css">
+  <link rel="stylesheet" href="site_libs/revealjs/dist/reveal.css">
+  <style>
+    /* Default styles provided by pandoc.
+    ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+    */
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    ul.task-list{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+      vertical-align: middle;
+    }
+  </style>
+  <link rel="stylesheet" href="site_libs/revealjs/dist/theme/quarto-0427d8d92a431aa6a6430e53ec02a470.css">
+  <link rel="stylesheet" href="executive_summary_layout.css">
+  <link href="site_libs/revealjs/plugin/quarto-line-highlight/line-highlight.css" rel="stylesheet">
+  <link href="site_libs/revealjs/plugin/reveal-menu/menu.css" rel="stylesheet">
+  <link href="site_libs/revealjs/plugin/reveal-menu/quarto-menu.css" rel="stylesheet">
+  <link href="site_libs/revealjs/plugin/quarto-support/footer.css" rel="stylesheet">
+  <style type="text/css">
+    .reveal div.sourceCode {
+      margin: 0;
+      overflow: auto;
+    }
+    .reveal div.hanging-indent {
+      margin-left: 1em;
+      text-indent: -1em;
+    }
+    .reveal .slide:not(.center) {
+      height: 100%;
+    }
+    .reveal .slide.scrollable {
+      overflow-y: auto;
+    }
+    .reveal .footnotes {
+      height: 100%;
+      overflow-y: auto;
+    }
+    .reveal .slide .absolute {
+      position: absolute;
+      display: block;
+    }
+    .reveal .footnotes ol {
+      counter-reset: ol;
+      list-style-type: none; 
+      margin-left: 0;
+    }
+    .reveal .footnotes ol li:before {
+      counter-increment: ol;
+      content: counter(ol) ". "; 
+    }
+    .reveal .footnotes ol li > p:first-child {
+      display: inline-block;
+    }
+    .reveal .slide ul,
+    .reveal .slide ol {
+      margin-bottom: 0.5em;
+    }
+    .reveal .slide ul li,
+    .reveal .slide ol li {
+      margin-top: 0.4em;
+      margin-bottom: 0.2em;
+    }
+    .reveal .slide ul[role="tablist"] li {
+      margin-bottom: 0;
+    }
+    .reveal .slide ul li > *:first-child,
+    .reveal .slide ol li > *:first-child {
+      margin-block-start: 0;
+    }
+    .reveal .slide ul li > *:last-child,
+    .reveal .slide ol li > *:last-child {
+      margin-block-end: 0;
+    }
+    .reveal .slide .columns:nth-child(3) {
+      margin-block-start: 0.8em;
+    }
+    .reveal blockquote {
+      box-shadow: none;
+    }
+    .reveal .tippy-content>* {
+      margin-top: 0.2em;
+      margin-bottom: 0.7em;
+    }
+    .reveal .tippy-content>*:last-child {
+      margin-bottom: 0.2em;
+    }
+    .reveal .slide > img.stretch.quarto-figure-center,
+    .reveal .slide > img.r-stretch.quarto-figure-center {
+      display: block;
+      margin-left: auto;
+      margin-right: auto; 
+    }
+    .reveal .slide > img.stretch.quarto-figure-left,
+    .reveal .slide > img.r-stretch.quarto-figure-left  {
+      display: block;
+      margin-left: 0;
+      margin-right: auto; 
+    }
+    .reveal .slide > img.stretch.quarto-figure-right,
+    .reveal .slide > img.r-stretch.quarto-figure-right  {
+      display: block;
+      margin-left: auto;
+      margin-right: 0; 
+    }
+  </style>
+</head>
+<body class="quarto-light">
+  <div class="reveal">
+    <div class="slides">
+
+<section id="title-slide" class="quarto-title-block center">
+  <h1 class="title">Motor Insurance Portfolio Insights</h1>
+  <p class="subtitle">Executive Summary</p>
+
+<div class="quarto-title-authors">
+<div class="quarto-title-author">
+<div class="quarto-title-author-name">
+Wang Yanshuang 
+</div>
+</div>
+</div>
+
+  <p class="date">2026-05-20</p>
+</section>
+<section id="motor-insurance-portfolio-insights" class="slide level2 cover">
+<h2>Motor Insurance Portfolio Insights</h2>
+<div class="cover-inner">
+<div class="eyebrow">
+<p>Executive Summary · Take-home Exercise 1</p>
+</div>
+<h1>
+Motor Insurance<br>Portfolio Insights
+</h1>
+<p class="cover-subtitle">
+</p><p>Visual analytics of portfolio composition, claims behaviour, pricing adequacy, and loss concentration.</p>
+<p></p>
+<div class="cover-meta">
+<p>Prepared by Wang Yanshuang · 2026-5-20</p>
+</div>
+</div>
+<aside class="notes">
+<p>This cover introduces the presentation as an executive visual analytics summary. The objective is to communicate the key portfolio patterns, risk signals, and management implications from the motor insurance analysis. The companion technical report documents the reproducible sandbox, data preparation, and implementation details.</p>
+<style type="text/css">
+        span.MJX_Assistive_MathML {
+          position:absolute!important;
+          clip: rect(1px, 1px, 1px, 1px);
+          padding: 1px 0 0 0!important;
+          border: 0!important;
+          height: 1px!important;
+          width: 1px!important;
+          overflow: hidden!important;
+          display:block!important;
+      }</style></aside>
+</section>
+<section id="contents" class="slide level2">
+<h2>Contents</h2>
+<div class="agenda-grid">
+<div>
+<p>01<b>Portfolio baseline</b></p>
+<p>
+Dataset scale, exposure, loss ratio, claim frequency, and derived metrics.
+</p>
+</div>
+<div>
+<p>02<b>Composition and distributions</b></p>
+<p>
+Policy mix, underwriting profile, numerical skewness, and claim-count shape.
+</p>
+</div>
+<div>
+<p>03<b>Segment risk patterns</b></p>
+<p>
+Policy type, bonus score, age bands, geography, and vehicle-brand indicators.
+</p>
+</div>
+<div>
+<p>04<b>Pricing and actions</b></p>
+<p>
+Pricing deciles, loss concentration, and management recommendations.
+</p>
+</div>
+</div>
+<aside class="notes">
+<p>The structure follows the reference layout: each slide presents a focused visual pattern followed by interpretation. The story moves from portfolio baseline to distributional evidence, then into segment-level risk and actionable recommendations. This keeps the executive summary concise while still showing the statistical evidence behind the conclusions.</p>
+<style type="text/css">
+        span.MJX_Assistive_MathML {
+          position:absolute!important;
+          clip: rect(1px, 1px, 1px, 1px);
+          padding: 1px 0 0 0!important;
+          border: 0!important;
+          height: 1px!important;
+          width: 1px!important;
+          overflow: hidden!important;
+          display:block!important;
+      }</style></aside>
+</section>
+<section id="observation-1---portfolio-baseline-and-analytical-sandbox" class="slide level2">
+<h2>Observation 1 - Portfolio Baseline and Analytical Sandbox</h2>
+<div class="kpi-row">
+<div>
+<p><b>354,140</b>Policy-year records</p>
+</div>
+<div>
+<p><b>250,326</b>Total exposure</p>
+</div>
+<div>
+<p><b>70.3%</b>Portfolio loss ratio</p>
+</div>
+<div>
+<p><b>0.31</b>Claim frequency</p>
+</div>
+<div>
+<p><b>85.7%</b>No-claim share</p>
+</div>
+</div>
+<div class="method-line">
+<div>
+<p><b>Prepare</b><br>Import CSV and variable dictionary</p>
+</div>
+<div>
+<p><b>Transform</b><br>Recode categories and handle low missingness</p>
+</div>
+<div>
+<p><b>Measure</b><br>Derive frequency, severity, loss ratio, pure premium</p>
+</div>
+<div>
+<p><b>Analyse</b><br>Use distribution, segment, interaction, and concentration views</p>
+</div>
+</div>
+<div class="observation-box">
+<ul>
+<li>The portfolio is large enough for robust segment-level visual analytics across 2022-2024.<br></li>
+<li>The aggregate loss ratio of <b>70.3%</b> is acceptable, but the high no-claim share shows a zero-inflated claims process.<br></li>
+<li>The sandbox normalises experience by exposure and premium, allowing fair comparisons across policy types, years, and risk segments.</li>
+</ul>
+</div>
+<aside class="notes">
+<p>The baseline establishes both scale and analytical caution. Although the aggregate loss ratio is 70.3%, 85.7% of policy-year records have no claims. This means the portfolio average is shaped by a relatively small share of claim-generating records. The sandbox therefore creates exposure-normalised and premium-normalised measures before interpreting segment patterns.</p>
+<style type="text/css">
+        span.MJX_Assistive_MathML {
+          position:absolute!important;
+          clip: rect(1px, 1px, 1px, 1px);
+          padding: 1px 0 0 0!important;
+          border: 0!important;
+          height: 1px!important;
+          width: 1px!important;
+          overflow: hidden!important;
+          display:block!important;
+      }</style></aside>
+</section>
+<section id="insight-2---policy-mix-and-portfolio-composition" class="slide level2">
+<h2>Insight 2 - Policy Mix and Portfolio Composition</h2>
+<div class="two-chart">
+<div class="panel">
+<div class="panel-title">
+<p>Policy type mix</p>
+</div>
+<p><img src="figures/unnamed-chunk-14-1.png"></p>
+</div>
+<div class="panel">
+<div class="panel-title">
+<p>Bonus, payment, fuel, and circulation mix</p>
+</div>
+<p><img src="figures/unnamed-chunk-15-1.png"></p>
+</div>
+</div>
+<div class="observation-box">
+<ul>
+<li><b>Third-party + add-ons</b> is the dominant coverage structure, representing <b>57.8%</b> of policy-year records.<br></li>
+<li>The portfolio is concentrated in favourable bonus history, annual payment, diesel vehicles, and urban circulation.<br></li>
+<li>Composition effects are important because large segments drive averages, while smaller segments may still carry disproportionate profitability risk.</li>
+</ul>
+</div>
+<aside class="notes">
+<p>The composition view shows where portfolio averages come from. Third-party with add-ons is the largest policy type, followed by comprehensive with excess. The wider portfolio is also heavily weighted toward favourable bonus-score policies and annual payment. These distributions help explain why an acceptable aggregate loss ratio can mask very different results in smaller coverage or risk cells.</p>
+<style type="text/css">
+        span.MJX_Assistive_MathML {
+          position:absolute!important;
+          clip: rect(1px, 1px, 1px, 1px);
+          padding: 1px 0 0 0!important;
+          border: 0!important;
+          height: 1px!important;
+          width: 1px!important;
+          overflow: hidden!important;
+          display:block!important;
+      }</style></aside>
+</section>
+<section id="insight-3---numerical-variables-are-skewed" class="slide level2">
+<h2>Insight 3 - Numerical Variables Are Skewed</h2>
+<div class="single-chart wide">
+<p><img src="figures/unnamed-chunk-16-1.png"></p>
+</div>
+<div class="observation-box">
+<ul>
+<li>Driver age and vehicle age have broad distributions, suggesting heterogeneous customer and vehicle profiles.<br></li>
+<li>Vehicle value and premium per exposure are visibly right-skewed, so mean-only summaries may be misleading.<br></li>
+<li>Values are capped at the 99th percentile only for display, preserving readability while retaining full-data interpretation.</li>
+</ul>
+</div>
+<aside class="notes">
+<p>The numerical distributions show why visual analytics is necessary. Premium per exposure and vehicle value have long right tails, which can compress the main distribution if plotted without display treatment. The cap is used only for display. It allows the common range to be seen while the analytical conclusions still refer to the full portfolio.</p>
+<style type="text/css">
+        span.MJX_Assistive_MathML {
+          position:absolute!important;
+          clip: rect(1px, 1px, 1px, 1px);
+          padding: 1px 0 0 0!important;
+          border: 0!important;
+          height: 1px!important;
+          width: 1px!important;
+          overflow: hidden!important;
+          display:block!important;
+      }</style></aside>
+</section>
+<section id="insight-4---claim-occurrence-and-loss-amounts-behave-differently" class="slide level2">
+<h2>Insight 4 - Claim Occurrence and Loss Amounts Behave Differently</h2>
+<div class="single-chart wide">
+<p><img src="figures/unnamed-chunk-17-1.png"></p>
+</div>
+<div class="observation-box">
+<ul>
+<li><b>85.7%</b> of policy-year records have zero claims, confirming strong zero inflation.<br></li>
+<li>Positive incurred losses are right-tailed; a log scale makes the severity distribution interpretable.<br></li>
+<li>Frequency and severity should be analysed separately because they represent different risk mechanisms.</li>
+</ul>
+</div>
+<aside class="notes">
+<p>The claim count chart shows that claim occurrence is rare at the policy-year level, while the positive incurred-loss distribution is highly skewed. These two patterns should not be collapsed too early. Frequency indicates how often claims arise; severity indicates how expensive claims are once they occur. Managing them separately improves pricing and claims insight.</p>
+<style type="text/css">
+        span.MJX_Assistive_MathML {
+          position:absolute!important;
+          clip: rect(1px, 1px, 1px, 1px);
+          padding: 1px 0 0 0!important;
+          border: 0!important;
+          height: 1px!important;
+          width: 1px!important;
+          overflow: hidden!important;
+          display:block!important;
+      }</style></aside>
+</section>
+<section id="insight-5---premium-distribution-varies-by-policy-type" class="slide level2">
+<h2>Insight 5 - Premium Distribution Varies by Policy Type</h2>
+<div class="single-chart">
+<p><img src="figures/unnamed-chunk-18-1.png"></p>
+</div>
+<div class="observation-box">
+<ul>
+<li>Premium per exposure generally increases with coverage breadth, as expected for wider protection.<br></li>
+<li>Ridgeline distributions show spread, overlap, and tails across policy types rather than only average premiums.<br></li>
+<li>The visible distributional overlap suggests that vehicle, driver, geography, and underwriting variables also influence premium levels.</li>
+</ul>
+</div>
+<aside class="notes">
+<p>The ridgeline plot is useful because pricing is not just a single point estimate. It shows how premium per exposure is distributed within each policy type. Comprehensive covers generally sit higher, but the overlap across policy types indicates that coverage type alone does not explain premium variation. Other risk factors are also contributing.</p>
+<style type="text/css">
+        span.MJX_Assistive_MathML {
+          position:absolute!important;
+          clip: rect(1px, 1px, 1px, 1px);
+          padding: 1px 0 0 0!important;
+          border: 0!important;
+          height: 1px!important;
+          width: 1px!important;
+          overflow: hidden!important;
+          display:block!important;
+      }</style></aside>
+</section>
+<section id="insight-6---growth-has-been-accompanied-by-profitability-drift" class="slide level2">
+<h2>Insight 6 - Growth Has Been Accompanied by Profitability Drift</h2>
+<div class="single-chart medium">
+<p><img src="figures/unnamed-chunk-20-1.png"></p>
+</div>
+<div class="observation-box">
+<ul>
+<li>Exposure increased strongly from 2022 to 2024, indicating rapid portfolio growth.<br></li>
+<li>Loss ratio worsened in 2024, while claim frequency increased only modestly.<br></li>
+<li>The pattern suggests that growth quality should be monitored using severity, mix, and pricing adequacy indicators, not exposure alone.</li>
+</ul>
+</div>
+<aside class="notes">
+<p>The trend view separates business growth from risk quality. Exposure expanded strongly, but the 2024 loss ratio worsened. Because frequency changed only modestly, the deterioration may come from severity, pricing adequacy, or a change in portfolio mix. This makes the case for risk-adjusted growth monitoring.</p>
+<style type="text/css">
+        span.MJX_Assistive_MathML {
+          position:absolute!important;
+          clip: rect(1px, 1px, 1px, 1px);
+          padding: 1px 0 0 0!important;
+          border: 0!important;
+          height: 1px!important;
+          width: 1px!important;
+          overflow: hidden!important;
+          display:block!important;
+      }</style></aside>
+</section>
+<section id="insight-7---policy-type-is-the-strongest-risk-separator" class="slide level2">
+<h2>Insight 7 - Policy Type Is the Strongest Risk Separator</h2>
+<div class="single-chart">
+<p><img src="figures/unnamed-chunk-22-1.png"></p>
+</div>
+<div class="observation-box">
+<ul>
+<li><b>Comprehensive without excess</b> has the highest loss ratio at <b>93.9%</b> and the highest claim frequency at <b>1.05</b>.<br></li>
+<li>Third-party covers show lower loss ratios and lower frequencies, although severity can still be material when claims occur.<br></li>
+<li>The high-risk comprehensive segment should be prioritised for pricing and underwriting review.</li>
+</ul>
+</div>
+<aside class="notes">
+<p>The policy-type view identifies the most actionable risk signal. Comprehensive without excess combines the highest loss ratio with the highest frequency. Its severity is not the highest, which means the key pressure point is claim occurrence rather than unusually expensive average claims. This makes it a clear priority for pricing and eligibility review.</p>
+<style type="text/css">
+        span.MJX_Assistive_MathML {
+          position:absolute!important;
+          clip: rect(1px, 1px, 1px, 1px);
+          padding: 1px 0 0 0!important;
+          border: 0!important;
+          height: 1px!important;
+          width: 1px!important;
+          overflow: hidden!important;
+          display:block!important;
+      }</style></aside>
+</section>
+<section id="insight-8---bonus-score-and-age-bands-reveal-risk-trade-offs" class="slide level2">
+<h2>Insight 8 - Bonus Score and Age Bands Reveal Risk Trade-offs</h2>
+<div class="two-chart">
+<div class="panel">
+<div class="panel-title">
+<p>Bonus score risk separation</p>
+</div>
+<p><img src="figures/unnamed-chunk-24-1.png"></p>
+</div>
+<div class="panel">
+<div class="panel-title">
+<p>Driver and vehicle age bands</p>
+</div>
+<p><img src="figures/unnamed-chunk-25-1.png"></p>
+</div>
+</div>
+<div class="observation-box">
+<ul>
+<li>Bonus score separates frequency risk directionally, but residual loss-ratio differences remain.<br></li>
+<li>Claim frequency generally declines with older driver and vehicle age bands.<br></li>
+<li>Severity rises again in older bands, creating a frequency-severity trade-off that requires careful pricing treatment.</li>
+</ul>
+</div>
+<aside class="notes">
+<p>Bonus history is working as a risk signal because poor-history policies show higher frequency and higher premium. However, pricing relativities may not fully remove loss-ratio differences. Age bands add a second pattern: older bands tend to claim less often, but severity rises again in some older groups. This means age cannot be priced as a simple linear effect.</p>
+<style type="text/css">
+        span.MJX_Assistive_MathML {
+          position:absolute!important;
+          clip: rect(1px, 1px, 1px, 1px);
+          padding: 1px 0 0 0!important;
+          border: 0!important;
+          height: 1px!important;
+          width: 1px!important;
+          overflow: hidden!important;
+          display:block!important;
+      }</style></aside>
+</section>
+<section id="insight-9---geography-and-vehicle-brand-expose-risk-pockets" class="slide level2">
+<h2>Insight 9 - Geography and Vehicle Brand Expose Risk Pockets</h2>
+<div class="two-chart">
+<div class="panel">
+<div class="panel-title">
+<p>Loss ratio by policy and geography</p>
+</div>
+<p><img src="figures/unnamed-chunk-26-1.png"></p>
+</div>
+<div class="panel">
+<div class="panel-title">
+<p>Vehicle brand risk and exposure</p>
+</div>
+<p><img src="figures/unnamed-chunk-27-1.png"></p>
+</div>
+</div>
+<div class="observation-box">
+<ul>
+<li>Policy type remains a stronger differentiator than geography, but geographic cells still reveal elevated loss-ratio pockets.<br></li>
+<li>Brand bubbles combine loss ratio, exposure, and frequency, helping separate operationally material issues from small-cell noise.<br></li>
+<li>High-risk cells are most actionable when adverse performance and meaningful exposure occur together.</li>
+</ul>
+</div>
+<aside class="notes">
+<p>The heatmap and bubble chart move the analysis beyond one-dimensional segmentation. The heatmap highlights interaction effects between policy type and geography. The bubble chart adds exposure size and claim frequency to brand performance. This is important because high ratios in very small cells can be less important than moderately high ratios in large segments.</p>
+<style type="text/css">
+        span.MJX_Assistive_MathML {
+          position:absolute!important;
+          clip: rect(1px, 1px, 1px, 1px);
+          padding: 1px 0 0 0!important;
+          border: 0!important;
+          height: 1px!important;
+          width: 1px!important;
+          overflow: hidden!important;
+          display:block!important;
+      }</style></aside>
+</section>
+<section id="insight-10---pricing-deciles-are-directional-but-not-fully-calibrated" class="slide level2">
+<h2>Insight 10 - Pricing Deciles Are Directional but Not Fully Calibrated</h2>
+<div class="single-chart">
+<p><img src="figures/unnamed-chunk-28-1.png"></p>
+</div>
+<div class="observation-box">
+<ul>
+<li>Premium and pure premium generally increase across pricing deciles, showing directional risk sensitivity.<br></li>
+<li>Loss ratio is not perfectly flat across deciles, which suggests residual mispricing or volatility.<br></li>
+<li>Decile-level monitoring should be used to test whether price levels are aligned with realised loss cost.</li>
+</ul>
+</div>
+<aside class="notes">
+<p>The decile chart is a pricing adequacy check. If pricing perfectly matched risk, loss ratio would be more stable across deciles. Instead, premium and pure premium rise together, but the loss ratio still varies. This indicates that the pricing model is directionally useful but not perfectly calibrated across the portfolio.</p>
+<style type="text/css">
+        span.MJX_Assistive_MathML {
+          position:absolute!important;
+          clip: rect(1px, 1px, 1px, 1px);
+          padding: 1px 0 0 0!important;
+          border: 0!important;
+          height: 1px!important;
+          width: 1px!important;
+          overflow: hidden!important;
+          display:block!important;
+      }</style></aside>
+</section>
+<section id="insight-11---incurred-losses-are-highly-concentrated" class="slide level2">
+<h2>Insight 11 - Incurred Losses Are Highly Concentrated</h2>
+<div class="single-chart medium">
+<p><img src="figures/unnamed-chunk-29-1.png"></p>
+</div>
+<div class="observation-box">
+<ul>
+<li>The top <b>1.0%</b> of policy-year records account for <b>49.7%</b> of incurred losses.<br></li>
+<li>The top <b>5.0%</b> account for <b>83.2%</b> of incurred losses, confirming high loss concentration.<br></li>
+<li>Portfolio volatility should be monitored through large-loss and concentration diagnostics, not only average loss ratio.</li>
+</ul>
+</div>
+<aside class="notes">
+<p>The concentration curve is one of the strongest statistical insights. A small share of records drives a large share of incurred losses. This explains why the portfolio can appear stable on average while still carrying substantial volatility. A large-loss monitoring process should therefore be part of regular portfolio governance.</p>
+<style type="text/css">
+        span.MJX_Assistive_MathML {
+          position:absolute!important;
+          clip: rect(1px, 1px, 1px, 1px);
+          padding: 1px 0 0 0!important;
+          border: 0!important;
+          height: 1px!important;
+          width: 1px!important;
+          overflow: hidden!important;
+          display:block!important;
+      }</style></aside>
+</section>
+<section id="recommended-actions" class="slide level2">
+<h2>Recommended Actions</h2>
+<div class="action-grid">
+<div>
+<p><b>01 · Review comprehensive without excess</b></p>
+<p>
+Reassess eligibility, deductibles, pricing loadings, and claims controls for the highest frequency and loss-ratio segment.
+</p>
+</div>
+<div>
+<p><b>02 · Recalibrate bonus-score relativities</b></p>
+<p>
+Test whether poor and neutral histories receive sufficient loadings after allowing for policy type and vehicle mix.
+</p>
+</div>
+<div>
+<p><b>03 · Govern growth quality</b></p>
+<p>
+Track loss ratio, frequency, severity, and pure premium alongside exposure growth, especially for the 2024 book.
+</p>
+</div>
+<div>
+<p><b>04 · Monitor tail concentration</b></p>
+<p>
+Build recurring large-loss, brand, geography, and pricing-decile diagnostics for portfolio review.
+</p>
+</div>
+</div>
+<div class="observation-box">
+<ul>
+<li>The analysis supports targeted action rather than broad portfolio-wide intervention.<br></li>
+<li>Priority should be based on both adverse performance and exposure materiality.<br></li>
+<li>The same visual workflow can be reused as a recurring underwriting and pricing monitoring tool.</li>
+</ul>
+</div>
+<aside class="notes">
+<p>The recommended actions are prioritised by materiality. The first focus is comprehensive without excess because it combines high frequency and high loss ratio. The second is bonus-score recalibration because it is a major underwriting signal. The third is growth governance, and the fourth is tail monitoring because severe losses are highly concentrated.</p>
+<style type="text/css">
+        span.MJX_Assistive_MathML {
+          position:absolute!important;
+          clip: rect(1px, 1px, 1px, 1px);
+          padding: 1px 0 0 0!important;
+          border: 0!important;
+          height: 1px!important;
+          width: 1px!important;
+          overflow: hidden!important;
+          display:block!important;
+      }</style></aside>
+</section>
+<section id="closing-summary" class="slide level2">
+<h2>Closing Summary</h2>
+<div class="closing-grid">
+<div>
+<p>Pattern<b>The portfolio is profitable on average but heterogeneous underneath.</b></p>
+</div>
+<div>
+<p>Distribution<b>Claims are zero-inflated and incurred losses are concentrated.</b></p>
+</div>
+<div>
+<p>Segmentation<b>Policy type, bonus score, age, geography, and brand reveal distinct risk mechanisms.</b></p>
+</div>
+<div>
+<p>Decision<b>Pricing and underwriting should prioritise high-exposure, high-loss-ratio cells.</b></p>
+</div>
+</div>
+<aside class="notes">
+<p>The executive message is that averages are not enough for this portfolio. The visual evidence shows concentration in composition, skewness in numerical variables, zero inflation in claims, and severe concentration in incurred losses. The most useful management response is targeted: address the highest-risk policy type, recalibrate risk relativities, and monitor tail losses continuously.</p>
+<style type="text/css">
+        span.MJX_Assistive_MathML {
+          position:absolute!important;
+          clip: rect(1px, 1px, 1px, 1px);
+          padding: 1px 0 0 0!important;
+          border: 0!important;
+          height: 1px!important;
+          width: 1px!important;
+          overflow: hidden!important;
+          display:block!important;
+      }</style></aside>
+
+
+</section>
+    </div>
+  <div class="quarto-auto-generated-content" style="display: none;">
+<div class="footer footer-default">
+
+</div>
+</div></div>
+
+  <script>window.backupDefine = window.define; window.define = undefined;</script>
+  <script src="site_libs/revealjs/dist/reveal.js"></script>
+  <!-- reveal.js plugins -->
+  <script src="site_libs/revealjs/plugin/quarto-line-highlight/line-highlight.js"></script>
+  <script src="site_libs/revealjs/plugin/pdf-export/pdfexport.js"></script>
+  <script src="site_libs/revealjs/plugin/reveal-menu/menu.js"></script>
+  <script src="site_libs/revealjs/plugin/reveal-menu/quarto-menu.js"></script>
+  <script src="site_libs/revealjs/plugin/quarto-support/support.js"></script>
+  
+
+  <script src="site_libs/revealjs/plugin/notes/notes.js"></script>
+  <script src="site_libs/revealjs/plugin/search/search.js"></script>
+  <script src="site_libs/revealjs/plugin/zoom/zoom.js"></script>
+  <script src="site_libs/revealjs/plugin/math/math.js"></script>
+  <script>window.define = window.backupDefine; window.backupDefine = undefined;</script>
+
+  <script>
+
+      // Full list of configuration options available at:
+      // https://revealjs.com/config/
+      Reveal.initialize({
+'controlsAuto': true,
+'previewLinksAuto': false,
+'pdfSeparateFragments': false,
+'autoAnimateEasing': "ease",
+'autoAnimateDuration': 1,
+'autoAnimateUnmatched': true,
+'jumpToSlide': true,
+'menu': {"side":"left","useTextContentForMissingTitles":true,"markers":false,"loadIcons":false,"custom":[{"title":"Tools","icon":"<i class=\"fas fa-gear\"></i>","content":"<ul class=\"slide-menu-items\">\n<li class=\"slide-tool-item active\" data-item=\"0\"><a href=\"#\" onclick=\"RevealMenuToolHandlers.fullscreen(event)\"><kbd>f</kbd> Fullscreen</a></li>\n<li class=\"slide-tool-item\" data-item=\"1\"><a href=\"#\" onclick=\"RevealMenuToolHandlers.speakerMode(event)\"><kbd>s</kbd> Speaker View</a></li>\n<li class=\"slide-tool-item\" data-item=\"2\"><a href=\"#\" onclick=\"RevealMenuToolHandlers.overview(event)\"><kbd>o</kbd> Slide Overview</a></li>\n<li class=\"slide-tool-item\" data-item=\"3\"><a href=\"#\" onclick=\"RevealMenuToolHandlers.togglePdfExport(event)\"><kbd>e</kbd> PDF Export Mode</a></li>\n<li class=\"slide-tool-item\" data-item=\"4\"><a href=\"#\" onclick=\"RevealMenuToolHandlers.toggleScrollView(event)\"><kbd>r</kbd> Scroll View Mode</a></li>\n<li class=\"slide-tool-item\" data-item=\"5\"><a href=\"#\" onclick=\"RevealMenuToolHandlers.keyboardHelp(event)\"><kbd>?</kbd> Keyboard Help</a></li>\n</ul>"}],"openButton":true},
+'smaller': true,
+ 
+        // Display controls in the bottom right corner
+        controls: false,
+
+        // Help the user learn the controls by providing hints, for example by
+        // bouncing the down arrow when they first encounter a vertical slide
+        controlsTutorial: false,
+
+        // Determines where controls appear, "edges" or "bottom-right"
+        controlsLayout: 'edges',
+
+        // Visibility rule for backwards navigation arrows; "faded", "hidden"
+        // or "visible"
+        controlsBackArrows: 'faded',
+
+        // Display a presentation progress bar
+        progress: true,
+
+        // Display the page number of the current slide
+        slideNumber: 'c/t',
+
+        // 'all', 'print', or 'speaker'
+        showSlideNumber: 'all',
+
+        // Add the current slide number to the URL hash so that reloading the
+        // page/copying the URL will return you to the same slide
+        hash: true,
+
+        // Start with 1 for the hash rather than 0
+        hashOneBasedIndex: false,
+
+        // Flags if we should monitor the hash and change slides accordingly
+        respondToHashChanges: true,
+
+        // Push each slide change to the browser history
+        history: true,
+
+        // Enable keyboard shortcuts for navigation
+        keyboard: true,
+
+        // Enable the slide overview mode
+        overview: true,
+
+        // Disables the default reveal.js slide layout (scaling and centering)
+        // so that you can use custom CSS layout
+        disableLayout: false,
+
+        // Vertical centering of slides
+        center: false,
+
+        // Enables touch navigation on devices with touch input
+        touch: true,
+
+        // Loop the presentation
+        loop: false,
+
+        // Change the presentation direction to be RTL
+        rtl: false,
+
+        // see https://revealjs.com/vertical-slides/#navigation-mode
+        navigationMode: 'linear',
+
+        // Randomizes the order of slides each time the presentation loads
+        shuffle: false,
+
+        // Turns fragments on and off globally
+        fragments: true,
+
+        // Flags whether to include the current fragment in the URL,
+        // so that reloading brings you to the same fragment position
+        fragmentInURL: false,
+
+        // Flags if the presentation is running in an embedded mode,
+        // i.e. contained within a limited portion of the screen
+        embedded: false,
+
+        // Flags if we should show a help overlay when the questionmark
+        // key is pressed
+        help: true,
+
+        // Flags if it should be possible to pause the presentation (blackout)
+        pause: true,
+
+        // Flags if speaker notes should be visible to all viewers
+        showNotes: false,
+
+        // Global override for autoplaying embedded media (null/true/false)
+        autoPlayMedia: null,
+
+        // Global override for preloading lazy-loaded iframes (null/true/false)
+        preloadIframes: null,
+
+        // Number of milliseconds between automatically proceeding to the
+        // next slide, disabled when set to 0, this value can be overwritten
+        // by using a data-autoslide attribute on your slides
+        autoSlide: 0,
+
+        // Stop auto-sliding after user input
+        autoSlideStoppable: true,
+
+        // Use this method for navigation when auto-sliding
+        autoSlideMethod: null,
+
+        // Specify the average time in seconds that you think you will spend
+        // presenting each slide. This is used to show a pacing timer in the
+        // speaker view
+        defaultTiming: null,
+
+        // Enable slide navigation via mouse wheel
+        mouseWheel: false,
+
+        // The display mode that will be used to show slides
+        display: 'block',
+
+        // Hide cursor if inactive
+        hideInactiveCursor: true,
+
+        // Time before the cursor is hidden (in ms)
+        hideCursorTime: 5000,
+
+        // Opens links in an iframe preview overlay
+        previewLinks: false,
+
+        // Transition style (none/fade/slide/convex/concave/zoom)
+        transition: 'fade',
+
+        // Transition speed (default/fast/slow)
+        transitionSpeed: 'default',
+
+        // Transition style for full page slide backgrounds
+        // (none/fade/slide/convex/concave/zoom)
+        backgroundTransition: 'none',
+
+        // Number of slides away from the current that are visible
+        viewDistance: 3,
+
+        // Number of slides away from the current that are visible on mobile
+        // devices. It is advisable to set this to a lower number than
+        // viewDistance in order to save resources.
+        mobileViewDistance: 2,
+
+        // The "normal" size of the presentation, aspect ratio will be preserved
+        // when the presentation is scaled to fit different resolutions. Can be
+        // specified using percentage units.
+        width: 1280,
+
+        height: 720,
+
+        // Factor of the display size that should remain empty around the content
+        margin: 3.5e-2,
+
+        math: {
+          mathjax: 'https://cdn.jsdelivr.net/npm/mathjax@2.7.9/MathJax.js',
+          config: 'TeX-AMS_HTML-full',
+          tex2jax: {
+            inlineMath: [['\\(','\\)']],
+            displayMath: [['\\[','\\]']],
+            balanceBraces: true,
+            processEscapes: false,
+            processRefs: true,
+            processEnvironments: true,
+            preview: 'TeX',
+            skipTags: ['script','noscript','style','textarea','pre','code'],
+            ignoreClass: 'tex2jax_ignore',
+            processClass: 'tex2jax_process'
+          },
+        },
+
+        // reveal.js plugins
+        plugins: [QuartoLineHighlight, PdfExport, RevealMenu, QuartoSupport,
+
+          RevealMath,
+          RevealNotes,
+          RevealSearch,
+          RevealZoom
+        ]
+      });
+    </script>
+    <script id="quarto-html-after-body" type="application/javascript">
+      window.document.addEventListener("DOMContentLoaded", function (event) {
+        const tabsets =  window.document.querySelectorAll(".panel-tabset-tabby")
+        tabsets.forEach(function(tabset) {
+          const tabby = new Tabby('#' + tabset.id);
+        });
+        const isCodeAnnotation = (el) => {
+          for (const clz of el.classList) {
+            if (clz.startsWith('code-annotation-')) {                     
+              return true;
+            }
+          }
+          return false;
+        }
+        const onCopySuccess = function(e) {
+          // button target
+          const button = e.trigger;
+          // don't keep focus
+          button.blur();
+          // flash "checked"
+          button.classList.add('code-copy-button-checked');
+          var currentTitle = button.getAttribute("title");
+          button.setAttribute("title", "Copied!");
+          let tooltip;
+          if (window.bootstrap) {
+            button.setAttribute("data-bs-toggle", "tooltip");
+            button.setAttribute("data-bs-placement", "left");
+            button.setAttribute("data-bs-title", "Copied!");
+            tooltip = new bootstrap.Tooltip(button, 
+              { trigger: "manual", 
+                customClass: "code-copy-button-tooltip",
+                offset: [0, -8]});
+            tooltip.show();    
+          }
+          setTimeout(function() {
+            if (tooltip) {
+              tooltip.hide();
+              button.removeAttribute("data-bs-title");
+              button.removeAttribute("data-bs-toggle");
+              button.removeAttribute("data-bs-placement");
+            }
+            button.setAttribute("title", currentTitle);
+            button.classList.remove('code-copy-button-checked');
+          }, 1000);
+          // clear code selection
+          e.clearSelection();
+        }
+        const getTextToCopy = function(trigger) {
+          const outerScaffold = trigger.parentElement.cloneNode(true);
+          const codeEl = outerScaffold.querySelector('code');
+          for (const childEl of codeEl.children) {
+            if (isCodeAnnotation(childEl)) {
+              childEl.remove();
+            }
+          }
+          return codeEl.innerText;
+        }
+        const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+          text: getTextToCopy
+        });
+        clipboard.on('success', onCopySuccess);
+        if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+          const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+            text: getTextToCopy,
+            container: window.document.getElementById('quarto-embedded-source-code-modal')
+          });
+          clipboardModal.on('success', onCopySuccess);
+        }
+          var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+          var mailtoRegex = new RegExp(/^mailto:/);
+            var filterRegex = new RegExp('/' + window.location.host + '/');
+          var isInternal = (href) => {
+              return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+          }
+          // Inspect non-navigation links and adorn them if external
+         var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+          for (var i=0; i<links.length; i++) {
+            const link = links[i];
+            if (!isInternal(link.href)) {
+              // undo the damage that might have been done by quarto-nav.js in the case of
+              // links that we want to consider external
+              if (link.dataset.originalHref !== undefined) {
+                link.href = link.dataset.originalHref;
+              }
+            }
+          }
+        function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+          const config = {
+            allowHTML: true,
+            maxWidth: 500,
+            delay: 100,
+            arrow: false,
+            appendTo: function(el) {
+                return el.closest('section.slide') || el.parentElement;
+            },
+            interactive: true,
+            interactiveBorder: 10,
+            theme: 'light-border',
+            placement: 'bottom-start',
+          };
+          if (contentFn) {
+            config.content = contentFn;
+          }
+          if (onTriggerFn) {
+            config.onTrigger = onTriggerFn;
+          }
+          if (onUntriggerFn) {
+            config.onUntrigger = onUntriggerFn;
+          }
+            config['offset'] = [0,0];
+            config['maxWidth'] = 700;
+          window.tippy(el, config); 
+        }
+        const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+        for (var i=0; i<noterefs.length; i++) {
+          const ref = noterefs[i];
+          tippyHover(ref, function() {
+            // use id or data attribute instead here
+            let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+            try { href = new URL(href).hash; } catch {}
+            const id = href.replace(/^#\/?/, "");
+            const note = window.document.getElementById(id);
+            if (note) {
+              return note.innerHTML;
+            } else {
+              return "";
+            }
+          });
+        }
+        const findCites = (el) => {
+          const parentEl = el.parentElement;
+          if (parentEl) {
+            const cites = parentEl.dataset.cites;
+            if (cites) {
+              return {
+                el,
+                cites: cites.split(' ')
+              };
+            } else {
+              return findCites(el.parentElement)
+            }
+          } else {
+            return undefined;
+          }
+        };
+        var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+        for (var i=0; i<bibliorefs.length; i++) {
+          const ref = bibliorefs[i];
+          const citeInfo = findCites(ref);
+          if (citeInfo) {
+            tippyHover(citeInfo.el, function() {
+              var popup = window.document.createElement('div');
+              citeInfo.cites.forEach(function(cite) {
+                var citeDiv = window.document.createElement('div');
+                citeDiv.classList.add('hanging-indent');
+                citeDiv.classList.add('csl-entry');
+                var biblioDiv = window.document.getElementById('ref-' + cite);
+                if (biblioDiv) {
+                  citeDiv.innerHTML = biblioDiv.innerHTML;
+                }
+                popup.appendChild(citeDiv);
+              });
+              return popup.innerHTML;
+            });
+          }
+        }
+      });
+      </script>
+    
+
+</body></html>
