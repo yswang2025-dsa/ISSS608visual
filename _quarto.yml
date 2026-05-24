@@ -5,6 +5,8 @@ project:
 website:
   title: "ISSS608"
   navbar:
+    background: "#d8f3f0" 
+    foreground: "#006d6f"
     left:
       - text: "Hands-on Exercise"
         menu:
