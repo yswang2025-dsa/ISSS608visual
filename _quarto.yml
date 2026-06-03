@@ -36,12 +36,18 @@ website:
             href: HO_EX05_4.qmd
           - text: "Hands-on Exercise 5.5"
             href: HO_EX05_5.qmd
+          - text: "Hands-on Exercise 7.1"
+            href: HO_EX07_1.qmd
+          - text: "Hands-on Exercise 7.2"
+            href: HO_EX07_2.qmd
       - text: "Take-home Exercise"
         menu:
           - text: "Take-home Exercise 1"
             href: TH_EX01.qmd
           - text: "Motor Insurance Portfolio Insights"
             href: Executive_Summary_revealjs.qmd
+          - text: "Take-home Exercise 2"
+            href: TH_EX02.qmd
       - text: "About"
         href: about.qmd
 format:
