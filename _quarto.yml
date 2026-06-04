@@ -46,8 +46,6 @@ website:
             href: TH_EX01.qmd
           - text: "Motor Insurance Portfolio Insights"
             href: Executive_Summary_revealjs.qmd
-          - text: "Take-home Exercise 2"
-            href: TH_EX02.qmd
       - text: "About"
         href: about.qmd
 format:
