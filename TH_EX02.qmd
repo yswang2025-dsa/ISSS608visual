@@ -1,1169 +1,1097 @@
 ---
-title: "Take-home Exercise 2: Visual Analytics of a Multi-agent Posting Malfunction"
-date: "June 2, 2026"
-editor: visual
-execute:
-  warning: false
-  message: false
+title: "Take-home Exercise 2: Visual Trace of the SaidIt Anomaly"
+date: "June 8, 2026"
 format:
   html:
-    code-fold: true
-    code-summary: "Show the code"
-    code-tools: true
-    number-sections: true
+    toc: true
+    toc-depth: 2
+    number-sections: false
+    code-fold: false
+    code-tools: false
+    theme: cosmo
+execute:
+  echo: false
+  warning: false
+  message: false
+fig-width: 10
+fig-height: 5.6
 ---
 
-# 1 Overview
+```{=html}
+<style>
+body { line-height: 1.55; }
+h1, h2, h3 { color: #23384d; }
+.viz-note { font-size: 0.96rem; color: #46515a; margin-top: 0.55rem; margin-bottom: 1.35rem; }
+.metric-row { display: flex; gap: 14px; flex-wrap: wrap; margin: 1rem 0 1.3rem 0; }
+.metric-card { border-left: 6px solid #2a9d8f; background: #f7fbfa; padding: 12px 16px; min-width: 165px; border-radius: 7px; box-shadow: 0 1px 2px rgba(0,0,0,.06); }
+.metric-card .value { font-size: 1.55rem; font-weight: 800; color: #203040; }
+.metric-card .label { font-size: .88rem; color: #607080; }
+.small-caption { text-align: center; color: #71808c; font-size: .88rem; margin-top: .35rem; }
+.chart-label { font-size: .9rem; color: #5b6870; font-weight: 600; margin: 0.3rem 0 0.3rem 0; }
+</style>
+```
 
-## 1.1 Background
+```{r}
+#| label: setup
+required_packages <- c(
+  "jsonlite", "tidyverse", "lubridate", "stringr", "purrr", "forcats",
+  "DT", "igraph", "visNetwork", "htmltools", "knitr", "scales"
+)
 
-This take-home exercise investigates an anomalous SaidIt post made by John Windward's agent. The post is described in the challenge brief as occurring on May 17, 2046 at 4:21am. Rather than treating the event as a single isolated post, this report uses visual analytics to trace the surrounding system activity: file creation, file reading, subordinate task delegation, post checks, public posting, and cleanup.
+missing_packages <- required_packages[
+  !vapply(required_packages, requireNamespace, logical(1), quietly = TRUE)
+]
 
-All event times in this report are converted to the challenge local timezone, `America/Los_Angeles`, so that the event log aligns with the task statement.
+if (length(missing_packages) > 0) {
+  stop("Please install these packages before rendering: ", paste(missing_packages, collapse = ", "))
+}
 
-## 1.2 Analytical Questions
+invisible(lapply(required_packages, library, character.only = TRUE))
+theme_set(theme_minimal(base_size = 12))
 
-The report answers three questions:
+`%||%` <- function(x, y) if (is.null(x) || length(x) == 0) y else x
 
-1.  How was the anomalous SaidIt post made, and what exact chain of people, agents, and systems led to it?
-2.  What do the anomalous posts mean, and where did their content originate?
-3.  Could this behavior repeat, and where should one intervention be placed to reduce the risk?
+as_json_chr <- function(x) {
+  if (is.null(x) || length(x) == 0) return(NA_character_)
+  as.character(jsonlite::toJSON(x, auto_unbox = TRUE, null = "null"))
+}
 
-## 1.3 Visual Analytics Approach
+value_chr <- function(x) {
+  if (is.null(x) || length(x) == 0) return(NA_character_)
+  x <- unlist(x, recursive = TRUE, use.names = FALSE)
+  x <- as.character(x)
+  x <- x[!is.na(x) & x != ""]
+  if (length(x) == 0) NA_character_ else paste(unique(x), collapse = "; ")
+}
 
-The analysis follows the same network-and-time oriented structure used in the reference layout: first establish a baseline, then isolate the subnetwork of interest, then compare historical recurrences, and finally justify an intervention point.
+pluck_chr <- function(x, path) {
+  out <- tryCatch(purrr::pluck(x, !!!path, .default = NULL), error = function(e) NULL)
+  value_chr(out)
+}
+
+first_value <- function(...) {
+  vals <- unlist(list(...), use.names = FALSE)
+  vals <- vals[!is.na(vals) & vals != ""]
+  if (length(vals) == 0) NA_character_ else vals[1]
+}
+
+entity_person <- function(x) {
+  x %>%
+    str_replace("^Agent/person:", "person:") %>%
+    str_replace("^agent:person:", "person:")
+}
+
+entity_label <- function(x) {
+  ifelse(
+    is.na(x), NA_character_,
+    x %>%
+      str_replace("^Agent/person:", "Agent: ") %>%
+      str_replace("^agent:person:", "Agent: ") %>%
+      str_replace("^person:", "") %>%
+      str_replace("^system:", "System: ") %>%
+      str_replace("^world:", "World: ") %>%
+      str_replace_all("_", " ") %>%
+      str_to_title()
+  )
+}
+
+short_label <- function(x) {
+  entity_label(x) %>% str_replace("^Agent: ", "")
+}
+
+family_from_text <- function(x) {
+  str_extract(x, "[A-Z][A-Za-z]+(?=(_further_instructions\\.md|\\.txt))")
+}
+
+family_from_source <- function(x) {
+  x %>% str_remove("\\.txt$") %>% na_if("")
+}
+
+base_colors <- c(
+  "Create content file" = "#7a9e9f",
+  "Read instruction file" = "#457b9d",
+  "Instruction handoff" = "#2a9d8f",
+  "SaidIt check" = "#9b5de5",
+  "File-sourced SaidIt post" = "#e63946",
+  "Evidence deletion" = "#f4a261",
+  "Normal SaidIt post" = "#8ab17d",
+  "FleX post" = "#6c757d"
+)
+```
+
+# Project Brief
+
+Company A's AI systems administration team needs to explain why an anomalous gibberish post appeared on **SaidIt**. The post was made by **John Windward**, and the main analytical task is to determine whether it was an isolated malfunction or the visible endpoint of a repeatable multi-agent workflow.
+
+This report treats the event log as a system trace. Instead of starting from the final post alone, the analysis first establishes what normal agent activity looks like, then isolates public posts that are operationally different from ordinary SaidIt activity. The investigation then reconstructs the exact chain that led to the John Windward post, compares it with earlier similar incidents, and identifies where an intervention would most effectively interrupt future recurrence.
+
+The visual analytics system uses the provided MC2 activity timeline, the Tenant Thread organization chart, the data description, and the MC2 answer-sheet requirements. The timeline records actions, participants, timestamps, and event-specific details; the organization chart supplies people, teams, and departments for interpreting actors in the workflow. Together, they support both a detailed sequence view and a system-level context view.
+
+# Project Objectives
+
+This study aims to build a visual analytics workflow that answers the Mini-Challenge 2 questions in four stages:
+
+- describe the sequence of events that produced the anomalous SaidIt post;
+- infer the likely origin and meaning of the post contents;
+- check whether the behavior appeared before and could repeat;
+- recommend one practical control point that would make recurrence harder.
+
+Answer map:
+
+- Q1 is answered by the baseline, posting-origin profile, exact endpoint sequence, and SwiftWren network.
+- Q2 is answered by the normal-language contrast, file-source evidence table, and endpoint template.
+- Q3 is answered by the cross-family timeline, repeated incident fingerprint, prior-case network, and guardrail recommendation.
 
 ```{mermaid}
 flowchart LR
-    A("MC2 event timeline") --> B["Normalize event log"]
-    C("TenantThread org chart") --> D["Attach departments and roles"]
-    B --> E["System baseline"]
-    B --> F["SwiftWren incident chain"]
-    B --> G["Historical file-source incidents"]
-    D --> F
-    E --> H["Contextual visual overview"]
-    F --> I["Exact chain of events"]
-    G --> J["Repeat-risk comparison"]
-    I --> K["Recommended intervention"]
-    J --> K
+    A[Normal system baseline] --> B[Unusual SaidIt posting]
+    B --> C[Exact event chain]
+    C --> D[Historic repeat patterns]
+    D --> E[Intervention point]
 ```
 
-# 2 Setup
+# 1: Data Preparation and Required Inputs
 
-## 2.1 Loading Packages
+## 1.1: Loading R Packages
 
-```{r}
-library(tidyverse)
-library(jsonlite)
-library(lubridate)
-library(scales)
-library(plotly)
-library(DT)
-library(igraph)
-library(treemapify)
-library(ggrepel)
-library(knitr)
-```
+The setup chunk loads packages for JSON parsing, data wrangling, temporal analysis, static charts, interactive networks, and tables. It also defines helper functions for normalizing actor labels, extracting instruction families, and applying consistent event colors.
+
+## 1.2: Loading the Data
+
+All source files are referenced directly from the `data` folder in the same ISSS608visual project directory as this QMD file. This avoids hidden absolute paths and keeps the submission portable inside the course project.
 
 ```{r}
-package_tbl <- tribble(
-  ~Package, ~Purpose,
-  "tidyverse", "Data wrangling, transformation, and ggplot2 visualisation.",
-  "jsonlite", "Importing the MC2 JSON event log and organisation chart.",
-  "lubridate", "Converting Unix timestamps into challenge-local date-time values.",
-  "plotly", "Adding interactive hover and zoom to time-oriented graphics.",
-  "DT", "Creating searchable and sortable evidence tables.",
-  "igraph", "Constructing agent-to-agent propagation networks.",
-  "treemapify", "Summarising event classes with compact area-based views.",
-  "ggrepel", "Improving labels on dense network visualisations."
-)
-
-kable(package_tbl)
-```
-
-## 2.2 Styling and Helper Functions
-
-```{r}
-theme_set(theme_minimal(base_size = 11))
-
-challenge_tz <- "America/Los_Angeles"
-
-event_palette <- c(
-  "Agent delegation" = "#4E79A7",
-  "File action" = "#59A14F",
-  "Gateway" = "#B07AA1",
-  "Human/office" = "#9C755F",
-  "Posting" = "#E15759",
-  "Other" = "#79706E"
-)
-
-source_palette <- c(
-  "HiddenOrca" = "#4E79A7",
-  "MellowOtter" = "#F28E2B",
-  "SwiftWren" = "#E15759"
-)
-
-fmt_count <- label_number(big.mark = ",", accuracy = 1)
-fmt_pct <- label_percent(accuracy = 0.1)
-fmt_time <- function(x) format(x, "%b %d, %Y %H:%M:%S")
-
-pluck_text <- function(x, ...) {
-  y <- purrr::pluck(x, ..., .default = NA)
-  if (is.null(y) || length(y) == 0 || all(is.na(y))) {
-    return(NA_character_)
-  }
-  if (is.list(y)) {
-    y <- unlist(y, use.names = FALSE)
-  }
-  paste(as.character(y), collapse = ", ")
-}
-
-first_party <- function(x) {
-  if (is.null(x) || length(x) == 0) {
-    NA_character_
-  } else {
-    as.character(x[[1]])
-  }
-}
-
-party_text <- function(x) {
-  if (is.null(x) || length(x) == 0) {
-    NA_character_
-  } else {
-    paste(as.character(unlist(x)), collapse = " | ")
-  }
-}
-
-normalise_actor <- function(x) {
-  x %>%
-    str_replace("^Agent/", "") %>%
-    str_replace("^agent:", "person:") %>%
-    str_replace("^world:", "system:")
-}
-
-actor_label <- function(x) {
-  x %>%
-    normalise_actor() %>%
-    str_replace("^(person:|system:|department:|team:|company:)", "") %>%
-    str_replace_all("_", " ") %>%
-    str_to_title()
-}
-```
-
-## 2.3 Loading Data
-
-```{r}
+#| label: load-and-clean
 data_dir <- "data"
-mc2_file <- file.path(data_dir, "MC2 data.json")
-org_file <- file.path(data_dir, "org_chart.json")
+mc2_path <- file.path(data_dir, "MC2 data.json")
+org_path <- file.path(data_dir, "org_chart.json")
+description_path <- file.path(data_dir, "MC2 data description.md")
+answer_sheet_path <- file.path(data_dir, "VAST Challenge 2026 MC2 Answer Sheet.htm")
 
-mc2_raw <- fromJSON(mc2_file, simplifyVector = TRUE)
-org_raw <- read_json(org_file, simplifyVector = FALSE)
-```
+required_data_files <- c(mc2_path, org_path, description_path, answer_sheet_path)
+missing_data_files <- required_data_files[!file.exists(required_data_files)]
 
-```{r}
-events_raw <- mc2_raw$events
-details <- events_raw$details
-n_events <- nrow(events_raw)
-
-col_chr <- function(df, col) {
-  if (!is.data.frame(df) || !col %in% names(df)) {
-    return(rep(NA_character_, n_events))
-  }
-
-  value <- df[[col]]
-
-  if (is.data.frame(value)) {
-    return(rep(NA_character_, n_events))
-  }
-
-  if (is.list(value)) {
-    return(map_chr(value, function(x) {
-      if (is.null(x) || length(x) == 0 || all(is.na(x))) {
-        NA_character_
-      } else {
-        paste(as.character(unlist(x)), collapse = ", ")
-      }
-    }))
-  }
-
-  as.character(value)
+if (length(missing_data_files) > 0) {
+  stop("Missing required data files: ", paste(missing_data_files, collapse = ", "))
 }
 
-nested_details <- details$details
-args_details <- details$args
-
-event_when <- as_datetime(events_raw$when, tz = challenge_tz)
-primary_party <- map_chr(events_raw$parties, first_party)
-primary_actor <- normalise_actor(primary_party)
-
-target_agent <- col_chr(details, "target_agent")
-detail_target <- col_chr(details, "target")
-nested_person <- col_chr(nested_details, "person")
-detail_person <- col_chr(details, "person")
-
-queue_from <- case_when(
-  events_raw$short_name == "queue_subordinate_task" & !is.na(detail_person) ~ normalise_actor(detail_person),
-  events_raw$short_name == "queue_subordinate_task" ~ primary_actor,
-  TRUE ~ NA_character_
+data_sources <- tibble(
+  source = c("MC2 timeline", "Organization chart", "Data description", "Answer sheet requirements"),
+  path = required_data_files
 )
 
-queue_to <- case_when(
-  events_raw$short_name == "queue_subordinate_task" & !is.na(target_agent) ~ normalise_actor(target_agent),
-  events_raw$short_name == "queue_subordinate_task" & !is.na(detail_target) ~ normalise_actor(detail_target),
-  events_raw$short_name == "queue_subordinate_task" & !is.na(nested_person) ~ normalise_actor(nested_person),
-  TRUE ~ NA_character_
+mc2_json <- jsonlite::fromJSON(mc2_path, simplifyVector = FALSE)
+org_json <- jsonlite::fromJSON(org_path, simplifyVector = TRUE)
+
+org_nodes <- as_tibble(org_json$nodes)
+org_edges <- as_tibble(org_json$edges)
+
+events_raw <- tibble(
+  event_id = map_int(mc2_json$events, ~ .x$id %||% NA_integer_),
+  event_type = map_chr(mc2_json$events, ~ .x$short_name %||% NA_character_),
+  when = map_dbl(mc2_json$events, ~ as.numeric(.x$when %||% NA_real_)),
+  parties = map(mc2_json$events, ~ .x$parties %||% character(0)),
+  details = map(mc2_json$events, ~ .x$details)
 )
 
-content_direct <- col_chr(details, "content")
-content_nested <- col_chr(nested_details, "content")
-content_value <- coalesce(content_direct, content_nested)
+infer_actor <- function(parties, details) {
+  parties <- parties %||% character(0)
+  first_value(
+    value_chr(parties[1]),
+    pluck_chr(details, c("person")),
+    pluck_chr(details, c("from")),
+    pluck_chr(details, c("poster_id"))
+  )
+}
 
-args_path <- col_chr(args_details, "path")
-path_value <- coalesce(
-  col_chr(details, "target"),
-  args_path,
-  col_chr(details, "file")
-)
+infer_target <- function(event_type, parties, details, file_target, forum) {
+  parties <- parties %||% character(0)
+  if (event_type == "queue_subordinate_task") {
+    return(first_value(
+      pluck_chr(details, c("target_agent")),
+      pluck_chr(details, c("target")),
+      pluck_chr(details, c("details", "person")),
+      value_chr(parties[2])
+    ))
+  }
+  if (event_type %in% c("saidit_post", "saidit_post_check", "post_saidit")) {
+    return(ifelse(!is.na(forum), paste0("system:saidit/", forum), "system:saidit"))
+  }
+  if (!is.na(file_target)) return(file_target)
+  first_value(pluck_chr(details, c("to")), value_chr(parties[2]), pluck_chr(details, c("target")))
+}
 
-task_value <- coalesce(col_chr(details, "task"), col_chr(nested_details, "task"))
-topic_value <- coalesce(col_chr(details, "topic"), col_chr(nested_details, "topic"))
-content_source_value <- col_chr(details, "content_source")
-
-detail_text <- str_squish(str_c(
-  coalesce(content_source_value, ""),
-  coalesce(path_value, ""),
-  coalesce(args_path, ""),
-  coalesce(content_value, ""),
-  coalesce(task_value, ""),
-  coalesce(topic_value, ""),
-  sep = " "
-))
-
-events <- tibble(
-  id = as.integer(events_raw$id),
-  short_name = events_raw$short_name,
-  when = event_when,
-  date = as_date(event_when),
-  hour = floor_date(event_when, unit = "hour"),
-  parties_text = map_chr(events_raw$parties, party_text),
-  primary_party = primary_party,
-  primary_actor = primary_actor,
-  detail_text = detail_text,
-  person = detail_person,
-  poster_id = col_chr(details, "poster_id"),
-  sender = col_chr(details, "from"),
-  recipient = col_chr(details, "to"),
-  subject = col_chr(details, "subject"),
-  forum = col_chr(details, "forum"),
-  content = content_value,
-  content_source = content_source_value,
-  path = path_value,
-  task = task_value,
-  topic = topic_value,
-  question = col_chr(details, "question"),
-  queue_from = queue_from,
-  queue_to = queue_to,
-  source_stem = str_extract(detail_text, "HiddenOrca|MellowOtter|SwiftWren")
-) %>%
+events_clean <- events_raw %>%
   mutate(
-    event_class = case_when(
-      short_name %in% c("assign_agent_task", "queue_subordinate_task") ~ "Agent delegation",
-      short_name %in% c("access_files", "create_file", "delete_file", "list_files", "read_file") ~ "File action",
-      short_name %in% c("saidit_post_check") ~ "Gateway",
-      short_name %in% c("post_saidit", "saidit_post", "post_flex", "flex_post") ~ "Posting",
-      short_name %in% c("access_email", "check_access", "check_email", "enter_room", "propose_meeting", "received", "send_email", "sent") ~ "Human/office",
-      TRUE ~ "Other"
-    ),
-    actor_type = case_when(
-      str_starts(primary_party, "Agent/") | str_starts(primary_party, "agent:") ~ "Agent",
-      str_starts(primary_actor, "person:") ~ "Person",
-      str_starts(primary_actor, "system:") ~ "System",
-      TRUE ~ "Other"
+    timestamp_utc = as.POSIXct(when, origin = "1970-01-01", tz = "UTC"),
+    timestamp = with_tz(timestamp_utc, "America/Los_Angeles"),
+    date = as.Date(timestamp),
+    hour = floor_date(timestamp, "hour"),
+    hour_of_day = hour(timestamp),
+    parties_chr = map_chr(parties, ~ paste(.x, collapse = "; ")),
+    details_json = map_chr(details, as_json_chr),
+    task = map_chr(details, ~ first_value(pluck_chr(.x, c("task")), pluck_chr(.x, c("details", "task")))),
+    action = map_chr(details, ~ first_value(pluck_chr(.x, c("action")), pluck_chr(.x, c("a2a", "action")), pluck_chr(.x, c("task")))),
+    file_target = map_chr(details, ~ first_value(
+      pluck_chr(.x, c("file")),
+      pluck_chr(.x, c("target")),
+      pluck_chr(.x, c("args", "path")),
+      pluck_chr(.x, c("details", "path"))
+    )),
+    content_source = map_chr(details, ~ first_value(pluck_chr(.x, c("content_source")), pluck_chr(.x, c("details", "content_source")))),
+    content = map_chr(details, ~ first_value(pluck_chr(.x, c("content")), pluck_chr(.x, c("details", "content")))),
+    forum = map_chr(details, ~ first_value(pluck_chr(.x, c("forum")), pluck_chr(.x, c("details", "forum")))),
+    actor = map2_chr(parties, details, infer_actor),
+    target = pmap_chr(list(event_type, parties, details, file_target, forum), infer_target),
+    actor_person = entity_person(actor),
+    target_person = entity_person(target),
+    actor_label = entity_label(actor),
+    target_label = entity_label(target),
+    search_blob = str_c(event_type, parties_chr, details_json, sep = " | "),
+    instruction_family = dplyr::coalesce(family_from_source(content_source), family_from_text(search_blob)),
+    is_file_source_post = event_type == "saidit_post" & !is.na(content_source),
+    is_normal_saidit_post = event_type %in% c("saidit_post", "post_saidit") & is.na(content_source) & !is.na(content),
+    signal_type = case_when(
+      event_type == "create_file" & !is.na(instruction_family) ~ "Create content file",
+      event_type == "read_file" & str_detect(search_blob, "_further_instructions\\.md") ~ "Read instruction file",
+      event_type == "queue_subordinate_task" & !is.na(instruction_family) ~ "Instruction handoff",
+      event_type == "saidit_post_check" ~ "SaidIt check",
+      event_type == "saidit_post" & !is.na(content_source) ~ "File-sourced SaidIt post",
+      event_type == "delete_file" & !is.na(instruction_family) ~ "Evidence deletion",
+      TRUE ~ NA_character_
     )
-  )
-
-org_nodes <- map_dfr(org_raw$nodes, as_tibble) %>%
-  mutate(
-    title = replace_na(title, ""),
-    label = coalesce(label, actor_label(id))
-  )
-
-org_edges <- map_dfr(org_raw$edges, as_tibble)
-```
-
-```{r}
-org_parent <- setNames(org_edges$source, org_edges$target)
-org_label <- setNames(org_nodes$label, org_nodes$id)
-
-find_department <- function(actor_id) {
-  current <- normalise_actor(actor_id)
-
-  for (i in seq_len(8)) {
-    parent <- org_parent[[current]]
-    if (is.null(parent)) return(NA_character_)
-    if (str_starts(parent, "department:")) return(org_label[[parent]])
-    current <- parent
-  }
-
-  NA_character_
-}
-
-org_people <- org_nodes %>%
-  filter(type == "person") %>%
-  mutate(
-    department = map_chr(id, find_department),
-    display = if_else(title == "", label, paste0(label, " (", title, ")"))
-  )
-```
-
-# 3 Data Profile and Baseline
-
-## 3.1 Dataset Profile
-
-```{r}
-key_event_id <- 373902
-key_event <- events %>% filter(id == key_event_id)
-key_time <- key_event$when[1]
-
-profile_tbl <- tibble(
-  Measure = c(
-    "Event records",
-    "Distinct event types",
-    "Time span",
-    "People in org chart",
-    "Key anomalous event"
-  ),
-  Value = c(
-    fmt_count(nrow(events)),
-    fmt_count(n_distinct(events$short_name)),
-    paste0(fmt_time(min(events$when)), " to ", fmt_time(max(events$when))),
-    fmt_count(nrow(org_people)),
-    paste0("Event ", key_event_id, " at ", fmt_time(key_time))
-  )
-)
-
-kable(profile_tbl)
-```
-
-The log contains `r fmt_count(nrow(events))` events. The anomaly is represented by event `r key_event_id`, a `saidit_post` made by `r actor_label(key_event$primary_actor)` to `r actor_label("system:saidit")` with `content_source = SwiftWren.txt`.
-
-## 3.2 Event Composition
-
-```{r}
-event_class_summary <- events %>%
-  count(event_class, sort = TRUE) %>%
-  mutate(
-    pct = n / sum(n),
-    label = paste0(fmt_count(n), " events")
-  )
-
-event_class_plot <- ggplot(event_class_summary, aes(
-  x = reorder(event_class, n),
-  y = n,
-  fill = event_class,
-  text = paste0(event_class, "<br>", fmt_count(n), " events<br>", fmt_pct(pct))
-)) +
-  geom_col(width = 0.72) +
-  coord_flip() +
-  scale_fill_manual(values = event_palette) +
-  scale_y_continuous(labels = fmt_count) +
-  labs(
-    x = NULL,
-    y = "Number of events",
-    title = "Event classes in the MC2 timeline",
-    subtitle = "Most activity is routine email checking, file access, agent tasking, and office-system interaction."
-  ) +
-  theme(legend.position = "none")
-
-ggplotly(event_class_plot, tooltip = "text")
-```
-
-```{r}
-event_type_top <- events %>%
-  count(short_name, event_class, sort = TRUE) %>%
-  slice_head(n = 18)
-
-type_plot <- ggplot(event_type_top, aes(
-  x = reorder(short_name, n),
-  y = n,
-  fill = event_class,
-  text = paste0(short_name, "<br>", event_class, "<br>", fmt_count(n), " events")
-)) +
-  geom_col(width = 0.74) +
-  coord_flip() +
-  scale_fill_manual(values = event_palette) +
-  scale_y_continuous(labels = fmt_count) +
-  labs(
-    x = NULL,
-    y = "Number of events",
-    title = "Most frequent event types"
-  ) +
-  theme(legend.position = "bottom")
-
-ggplotly(type_plot, tooltip = "text")
-```
-
-## 3.3 Activity Around the Incident Window
-
-```{r}
-incident_window <- events %>%
-  filter(when >= key_time - days(8), when <= key_time + days(1)) %>%
-  count(date, event_class)
-
-window_plot <- ggplot(incident_window, aes(
-  x = date,
-  y = n,
-  fill = event_class,
-  text = paste0(date, "<br>", event_class, "<br>", fmt_count(n), " events")
-)) +
-  geom_col(width = 0.86) +
-  geom_vline(xintercept = as.numeric(as_date(key_time)), color = "#E15759", linewidth = 0.9) +
-  scale_fill_manual(values = event_palette) +
-  scale_y_continuous(labels = fmt_count) +
-  labs(
-    x = NULL,
-    y = "Events",
-    fill = "Event class",
-    title = "System activity in the eight days before the anomalous post",
-    subtitle = "The red line marks the May 17 SaidIt incident."
-  ) +
-  theme(legend.position = "bottom")
-
-ggplotly(window_plot, tooltip = "text")
-```
-
-The incident happened in a busy system, but its final mechanics are unusually simple: a file-backed instruction chain reached John Windward's agent, the SaidIt gateway was checked, a file source was posted, and the file was immediately deleted.
-
-# 4 Detailed Incident Chain
-
-## 4.1 Identifying the SwiftWren Evidence Trail
-
-```{r}
-suspicious_sources <- c("HiddenOrca", "MellowOtter", "SwiftWren")
-
-source_events <- events %>%
-  filter(source_stem %in% suspicious_sources)
-
-source_posts <- events %>%
-  filter(
-    short_name == "saidit_post",
-    !is.na(content_source),
-    str_detect(content_source, paste0(suspicious_sources, collapse = "|"))
   ) %>%
-  mutate(
-    source_stem = str_remove(content_source, "\\.txt$"),
-    poster = normalise_actor(primary_party)
+  arrange(timestamp)
+
+org_nodes_lu <- org_nodes %>% select(id, label, type, title)
+team_to_dept <- org_edges %>%
+  filter(str_starts(source, "department:"), str_starts(target, "team:")) %>%
+  transmute(team = target, department = source)
+
+person_team <- org_edges %>%
+  filter(str_starts(source, "team:"), str_starts(target, "person:")) %>%
+  transmute(person = target, team = source) %>%
+  left_join(team_to_dept, by = "team")
+
+person_dept_direct <- org_edges %>%
+  filter(str_starts(source, "department:"), str_starts(target, "person:")) %>%
+  transmute(person = target, department = source, team = NA_character_)
+
+person_org <- bind_rows(person_team, person_dept_direct) %>%
+  distinct(person, .keep_all = TRUE) %>%
+  left_join(org_nodes_lu %>% select(department = id, department_label = label), by = "department") %>%
+  left_join(org_nodes_lu %>% select(team = id, team_label = label), by = "team")
+
+events_clean <- events_clean %>%
+  left_join(person_org, by = c("actor_person" = "person"))
+
+file_source_posts <- events_clean %>% filter(is_file_source_post)
+target_post <- file_source_posts %>%
+  filter(str_detect(search_blob, regex("john_windward", ignore_case = TRUE))) %>%
+  arrange(timestamp) %>%
+  slice_tail(n = 1)
+
+target_time <- target_post$timestamp[1]
+target_family <- target_post$instruction_family[1]
+target_agent <- target_post$actor[1]
+endpoint_node <- target_agent
+
+# Families with file-sourced SaidIt posts. These are the incident families used
+# for comparative visuals.
+suspicious_families <- file_source_posts %>%
+  arrange(timestamp) %>%
+  pull(instruction_family) %>%
+  unique()
+
+target_family_events <- events_clean %>% filter(instruction_family == target_family)
+
+handoff_edges <- events_clean %>%
+  filter(event_type == "queue_subordinate_task", !is.na(instruction_family)) %>%
+  transmute(
+    event_id, timestamp, instruction_family,
+    from = actor, to = target,
+    from_label = entity_label(actor), to_label = entity_label(target),
+    from_person = entity_person(actor), to_person = entity_person(target)
   ) %>%
-  arrange(when)
+  filter(!is.na(from), !is.na(to), from != "", to != "")
 
-post_checks <- events %>%
-  filter(short_name == "saidit_post_check")
-
-find_prior_check_id <- function(post_time) {
-  candidates <- post_checks %>%
-    filter(when <= post_time, when >= post_time - seconds(10)) %>%
-    arrange(desc(when))
-
-  if (nrow(candidates) == 0) NA_integer_ else candidates$id[1]
-}
-
-find_prior_check_gap <- function(post_time) {
-  candidates <- post_checks %>%
-    filter(when <= post_time, when >= post_time - seconds(10)) %>%
-    arrange(desc(when))
-
-  if (nrow(candidates) == 0) {
-    NA_real_
-  } else {
-    as.numeric(difftime(post_time, candidates$when[1], units = "secs"))
-  }
-}
-
-source_posts <- source_posts %>%
-  mutate(
-    prior_check_id = map_int(when, find_prior_check_id),
-    check_gap_seconds = map_dbl(when, find_prior_check_gap)
-  )
-
-swift_post <- source_posts %>%
-  filter(source_stem == "SwiftWren") %>%
-  slice(1)
-
-swift_events <- source_events %>%
-  filter(source_stem == "SwiftWren")
-
-swift_edges <- swift_events %>%
-  filter(short_name == "queue_subordinate_task", !is.na(queue_from), !is.na(queue_to)) %>%
-  transmute(
-    id,
-    when,
-    from = normalise_actor(queue_from),
-    to = normalise_actor(queue_to)
-  )
+swift_edges <- handoff_edges %>% filter(instruction_family == target_family)
 ```
 
 ```{r}
-trace_back_latest <- function(edge_df, target, event_time, max_steps = 20) {
-  out <- list()
-  current <- target
-  current_time <- event_time
-  visited <- character()
-
-  for (i in seq_len(max_steps)) {
-    candidate <- edge_df %>%
-      filter(to == current, when < current_time) %>%
-      arrange(desc(when)) %>%
-      slice_head(n = 1)
-
-    if (nrow(candidate) == 0) break
-
-    out[[length(out) + 1]] <- candidate
-    visited <- c(visited, current)
-    current <- candidate$from[1]
-    current_time <- candidate$when[1]
-
-    if (current %in% visited) break
-  }
-
-  if (length(out) == 0) {
-    tibble()
-  } else {
-    bind_rows(rev(out)) %>%
-      mutate(step = row_number())
-  }
-}
-
-swift_exact_path <- trace_back_latest(
-  edge_df = swift_edges,
-  target = "person:john_windward",
-  event_time = swift_post$when[1]
-)
+#| label: source-files
+knitr::kable(data_sources, caption = "Source files referenced by this report")
 ```
 
-```{r}
-swift_origin <- swift_events %>%
-  filter(short_name == "create_file") %>%
-  arrange(when) %>%
-  slice_head(n = 1) %>%
-  transmute(
-    stage = "1. Source file created",
-    event_id = id,
-    time = when,
-    actor = actor_label(primary_actor),
-    target = "SwiftWren.txt",
-    evidence = "The file to be posted was created by an agent and stored in the file system."
-  )
-
-swift_path_tbl <- swift_exact_path %>%
-  transmute(
-    stage = paste0(step + 1, ". Instruction hop"),
-    event_id = id,
-    time = when,
-    actor = actor_label(from),
-    target = actor_label(to),
-    evidence = "Agent queued subordinate task: read SwiftWren_further_instructions.md"
-  )
-
-swift_terminal_ids <- c(
-  swift_post$prior_check_id[1],
-  swift_post$id[1],
-  events %>%
-    filter(
-      when > swift_post$when[1],
-      when <= swift_post$when[1] + seconds(3),
-      short_name == "delete_file"
-    ) %>%
-    pull(id)
-)
-
-swift_terminal <- events %>%
-  filter(id %in% swift_terminal_ids) %>%
-  arrange(when) %>%
-  transmute(
-    stage = paste0(row_number() + max(swift_path_tbl$stage %>% str_extract("^\\d+") %>% as.integer()), ". Terminal action"),
-    event_id = id,
-    time = when,
-    actor = actor_label(primary_actor),
-    target = case_when(
-      short_name == "saidit_post_check" ~ "SaidIt post gate",
-      short_name == "saidit_post" ~ content_source,
-      short_name == "delete_file" ~ path,
-      TRUE ~ short_name
-    ),
-    evidence = case_when(
-      short_name == "saidit_post_check" ~ "John's agent checks posting route to SaidIt.",
-      short_name == "saidit_post" ~ "John's agent posts content_source = SwiftWren.txt to SaidIt general forum.",
-      short_name == "delete_file" ~ "Cleanup removes the instruction or content source immediately after posting.",
-      TRUE ~ detail_text
-    )
-  )
-
-swift_chain_table <- bind_rows(swift_origin, swift_path_tbl, swift_terminal) %>%
-  mutate(time = fmt_time(time))
-
-datatable(
-  swift_chain_table,
-  rownames = FALSE,
-  options = list(pageLength = 12, scrollX = TRUE),
-  caption = "Evidence chain for the SwiftWren / John Windward SaidIt incident"
-)
-```
-
-The precise late-stage chain is clear: `SwiftWren_further_instructions.md` moved through a short final path of agents, reached Chloe Ballast, was passed to John Windward, then John Windward's agent posted `SwiftWren.txt` to SaidIt.
-
-## 4.2 Timeline of the Final Chain
+## 1.3: Data Health
 
 ```{r}
-path_plot_data <- swift_exact_path %>%
-  mutate(
-    from_label = actor_label(from),
-    to_label = actor_label(to),
-    step_label = paste0(from_label, " -> ", to_label),
-    event_type = "Instruction hop"
+#| label: data-health-metrics
+metric_html <- tibble(
+  label = c("Events", "Event types", "SaidIt posts", "File-sourced posts", "Suspicious families"),
+  value = c(
+    scales::comma(nrow(events_clean)),
+    scales::comma(n_distinct(events_clean$event_type)),
+    scales::comma(sum(events_clean$event_type %in% c("saidit_post", "post_saidit"))),
+    scales::comma(nrow(file_source_posts)),
+    scales::comma(n_distinct(events_clean$instruction_family, na.rm = TRUE))
   )
-
-terminal_plot_data <- events %>%
-  filter(id %in% swift_terminal_ids) %>%
-  mutate(
-    from_label = actor_label(primary_actor),
-    to_label = case_when(
-      short_name == "saidit_post_check" ~ "SaidIt gate",
-      short_name == "saidit_post" ~ "SaidIt",
-      short_name == "delete_file" ~ "File system",
-      TRUE ~ actor_label(primary_actor)
-    ),
-    step_label = paste0(from_label, " -> ", to_label),
-    event_type = case_when(
-      short_name == "saidit_post_check" ~ "Gateway",
-      short_name == "saidit_post" ~ "Posting",
-      short_name == "delete_file" ~ "File action",
-      TRUE ~ event_class
-    )
-  )
-
-final_chain_plot_data <- bind_rows(
-  path_plot_data %>% select(id, when, step_label, event_type),
-  terminal_plot_data %>% select(id, when, step_label, event_type)
 ) %>%
-  arrange(when) %>%
-  mutate(order = row_number())
+  mutate(card = paste0('<div class="metric-card"><div class="value">', value, '</div><div class="label">', label, '</div></div>')) %>%
+  pull(card) %>%
+  paste(collapse = "") %>%
+  paste0('<div class="metric-row">', ., '</div>')
 
-chain_timeline <- ggplot(final_chain_plot_data, aes(
-  x = when,
-  y = reorder(step_label, order),
-  color = event_type,
-  text = paste0(
-    "Event ", id,
-    "<br>", fmt_time(when),
-    "<br>", step_label,
-    "<br>", event_type
+HTML(metric_html)
+```
+
+The important data feature is that only a small number of public posts are file-sourced. That makes the John Windward case easier to isolate visually.
+
+# 2: Q1 System Overview - Baseline and Unusual Posting
+
+## What does normal system activity look like?
+
+```{r}
+#| label: v01-event-types
+#| fig-height: 6.0
+event_type_profile <- events_clean %>%
+  count(event_type, sort = TRUE) %>%
+  slice_head(n = 18) %>%
+  mutate(
+    event_type = factor(event_type, levels = event_type),
+    share = n / sum(n),
+    cumulative_share = cumsum(share)
   )
-)) +
-  geom_point(size = 3.4) +
-  geom_line(aes(group = 1), linewidth = 0.7, alpha = 0.45) +
-  scale_color_manual(values = c(
-    "Instruction hop" = "#4E79A7",
-    "Gateway" = "#B07AA1",
-    "Posting" = "#E15759",
-    "File action" = "#59A14F"
-  )) +
+
+max_event_count <- max(event_type_profile$n)
+
+event_type_profile <- event_type_profile %>%
+  mutate(cumulative_scaled = cumulative_share * max_event_count)
+
+ggplot(event_type_profile, aes(event_type, n, group = 1)) +
+  geom_linerange(aes(ymin = 0, ymax = n), color = "#b8c7d1", linewidth = 1.05) +
+  geom_point(aes(size = n, color = share), alpha = 0.95) +
+  geom_line(aes(y = cumulative_scaled), color = "#d62828", linewidth = 1.05) +
+  geom_point(aes(y = cumulative_scaled), color = "#d62828", size = 2.1) +
+  scale_color_gradient(low = "#8ecae6", high = "#1d4e89", labels = percent_format(accuracy = 1), name = "Share") +
+  scale_size_continuous(range = c(3.4, 8.6), guide = "none") +
+  scale_y_continuous(
+    labels = comma,
+    sec.axis = sec_axis(~ . / max_event_count, labels = percent_format(accuracy = 1), name = "Cumulative share")
+  ) +
+  labs(title = "Dominant event types", x = NULL, y = "Events") +
+  theme(axis.text.x = element_text(angle = 38, hjust = 1))
+```
+
+::: viz-note
+The event log is dominated by routine automation such as task assignment, file access, email access, and calendar actions. The cumulative line shows that a small set of repeated event types accounts for most system activity, while the suspicious file-posting behavior is buried among lower-volume actions.
+:::
+
+```{r}
+#| label: v02-daily-volume
+#| fig-height: 5.2
+daily_volume <- events_clean %>% count(date)
+
+ggplot(daily_volume, aes(date, n)) +
+  geom_line(color = "#457b9d", linewidth = 0.8) +
+  geom_point(color = "#457b9d", size = 1.8) +
+  geom_vline(xintercept = as.numeric(as.Date(target_time)), color = "#e63946", linewidth = 1) +
+  scale_y_continuous(labels = comma) +
+  labs(title = "Daily system activity with target incident marked", x = NULL, y = "Daily events")
+```
+
+::: viz-note
+Daily activity remains high around the target incident marker. The anomalous SaidIt post therefore appears inside normal operating volume rather than during a clear outage or isolated spike.
+:::
+
+```{r}
+#| label: v03-hour-heatmap
+#| fig-height: 6.2
+hour_heat <- events_clean %>%
+  filter(date <= as.Date(target_time)) %>%
+  count(date, hour_of_day)
+
+ggplot(hour_heat, aes(hour_of_day, date, fill = n)) +
+  geom_tile(color = "white", linewidth = 0.15) +
+  scale_fill_gradient(low = "#f1f5f9", high = "#1d4e89", labels = comma) +
+  labs(title = "System activity rhythm before the incident", x = "Hour of day", y = NULL, fill = "Events")
+```
+
+::: viz-note
+Activity appears across many hours of the day, with repeated bursts rather than a single narrow operating window. This pattern suggests that autonomous actions can continue outside a simple human workday rhythm.
+:::
+
+## Is the John Windward post unusual?
+
+```{r}
+#| label: v04-posting-mix
+#| fig-height: 5.6
+posting_mix <- events_clean %>%
+  filter(event_type %in% c("saidit_post", "post_saidit", "flex_post", "post_flex")) %>%
+  mutate(post_category = case_when(
+    str_detect(event_type, "flex") ~ "FleX post",
+    event_type == "saidit_post" & !is.na(content_source) ~ "File-sourced SaidIt post",
+    str_detect(event_type, "saidit") ~ "Normal SaidIt post",
+    TRUE ~ "Other"
+  )) %>%
+  count(post_category, sort = TRUE) %>%
+  mutate(
+    share = n / sum(n),
+    ymax = cumsum(share),
+    ymin = lag(ymax, default = 0),
+    label_y = (ymax + ymin) / 2,
+    label = paste0(post_category, "\n", comma(n), " (", percent(share, accuracy = 0.1), ")")
+  )
+
+ggplot(posting_mix, aes(x = 2, y = share, fill = post_category)) +
+  geom_col(color = "white", width = 0.9, linewidth = 0.6, show.legend = FALSE) +
+  coord_polar(theta = "y") +
+  xlim(0.55, 2.75) +
+  geom_text(aes(y = label_y, label = label), x = 2, size = 3.25, lineheight = 0.95, color = "white", fontface = "bold") +
+  scale_fill_manual(values = base_colors[names(base_colors) %in% posting_mix$post_category]) +
+  labs(title = "File-sourced SaidIt posts are rare", x = NULL, y = NULL) +
+  theme_void()
+```
+
+::: viz-note
+Normal SaidIt and FleX posts make up most public-posting activity. File-sourced SaidIt posts form only a small slice of the total, which marks them as operationally unusual compared with ordinary text-based posts.
+:::
+
+```{r}
+#| label: v05-topic-words
+#| fig-height: 5.4
+stop_terms <- c("and", "the", "for", "with", "from", "update", "updates", "general", "coordination", "tracking", "work", "order")
+
+normal_words <- events_clean %>%
+  filter(event_type == "saidit_post", is.na(content_source), !is.na(content)) %>%
+  transmute(word = str_to_lower(content)) %>%
+  mutate(word = str_replace_all(word, "[^a-z0-9 ]", " ")) %>%
+  separate_rows(word, sep = "\\s+") %>%
+  filter(word != "", !word %in% stop_terms, str_length(word) > 2) %>%
+  count(word, sort = TRUE) %>%
+  slice_head(n = 16) %>%
+  mutate(word = fct_reorder(word, n))
+
+ggplot(normal_words, aes(n, word)) +
+  geom_segment(aes(x = 0, xend = n, y = word, yend = word), color = "#c8dacc", linewidth = 1.2) +
+  geom_point(aes(size = n, color = n), alpha = 0.92) +
+  geom_text(aes(label = n), hjust = -0.15, fontface = "bold", size = 3.1, color = "#2f3e46") +
+  scale_color_gradient(low = "#b7d9bd", high = "#2d6a4f", guide = "none") +
+  scale_size_continuous(range = c(4.2, 12), guide = "none") +
+  scale_x_continuous(expand = expansion(mult = c(0, 0.14))) +
+  labs(title = "Normal SaidIt posts use business-topic language", x = "Word count", y = NULL)
+```
+
+::: viz-note
+The most frequent words in normal SaidIt posts refer to business operations such as maintenance, requests, vendor work, and resident/property workflows. The anomalous file-sourced post does not follow this visible business-language pattern.
+:::
+
+```{r}
+#| label: v06-poster-origin-profile
+#| fig-height: 5.6
+poster_origin <- events_clean %>%
+  filter(event_type == "saidit_post") %>%
+  mutate(
+    post_origin = if_else(!is.na(content_source), "File-sourced", "Normal content"),
+    poster = short_label(actor)
+  ) %>%
+  count(poster, post_origin, name = "posts") %>%
+  group_by(poster) %>%
+  mutate(total_posts = sum(posts)) %>%
+  ungroup() %>%
+  arrange(desc(total_posts)) %>%
+  slice_head(n = 12) %>%
+  complete(poster, post_origin = c("Normal content", "File-sourced"), fill = list(posts = 0)) %>%
+  group_by(poster) %>%
+  mutate(total_posts = sum(posts)) %>%
+  ungroup() %>%
+  mutate(
+    poster = fct_reorder(poster, total_posts),
+    post_origin = factor(post_origin, levels = c("Normal content", "File-sourced"))
+  )
+
+ggplot(poster_origin, aes(post_origin, poster, fill = posts)) +
+  geom_tile(color = "white", linewidth = 0.8) +
+  geom_text(aes(label = ifelse(posts > 0, posts, "0")), color = "#132a13", fontface = "bold", size = 3.2) +
+  scale_fill_gradient(low = "#edf6f9", high = "#d62828") +
   labs(
+    title = "File-sourced posting is concentrated in John Windward's agent",
     x = NULL,
     y = NULL,
-    color = "Event type",
-    title = "Exact late-stage event chain",
-    subtitle = "The chain reaches John, checks SaidIt, posts SwiftWren.txt, then deletes the evidence source."
-  ) +
-  theme(legend.position = "bottom")
-
-ggplotly(chain_timeline, tooltip = "text")
+    fill = "SaidIt posts"
+  )
 ```
 
-## 4.3 Agent Propagation Network
+::: viz-note
+Normal-content SaidIt posts are distributed across multiple posters, but file-sourced posts are concentrated in John Windward's row. This separates John Windward from routine public posters and identifies him as the main public-posting endpoint.
+:::
+
+## Q2 content-origin evidence
 
 ```{r}
-plot_edge_network <- function(edge_df, highlight_nodes = character(), title = NULL, subtitle = NULL) {
-  edge_counts <- edge_df %>%
-    filter(!is.na(from), !is.na(to), from != to) %>%
-    count(from, to, name = "weight", sort = TRUE)
-
-  if (nrow(edge_counts) == 0) {
-    return(ggplot() + labs(title = title))
-  }
-
-  graph <- graph_from_data_frame(edge_counts, directed = TRUE)
-  set.seed(608)
-  coords <- layout_with_fr(graph)
-
-  node_df <- tibble(
-    name = V(graph)$name,
-    x = coords[, 1],
-    y = coords[, 2],
-    degree = degree(graph, mode = "all"),
-    highlight = name %in% highlight_nodes,
-    label = actor_label(name)
+#| label: content-origin-evidence
+content_file_creates <- events_clean %>%
+  filter(event_type == "create_file", !is.na(instruction_family), str_detect(file_target, "\\.txt$")) %>%
+  arrange(timestamp) %>%
+  group_by(instruction_family) %>%
+  slice_head(n = 1) %>%
+  ungroup() %>%
+  transmute(
+    instruction_family,
+    content_file = file_target,
+    created_at = format(timestamp, "%b %d %H:%M:%S"),
+    created_by = short_label(actor)
   )
 
-  edge_plot <- edge_counts %>%
-    left_join(node_df %>% select(from = name, x, y), by = "from") %>%
-    left_join(node_df %>% select(to = name, xend = x, yend = y), by = "to")
+content_origin_table <- file_source_posts %>%
+  transmute(
+    instruction_family,
+    post_time = format(timestamp, "%b %d %H:%M:%S"),
+    poster = short_label(actor),
+    forum,
+    content_source,
+    post_content_visible_in_log = if_else(is.na(content), "No", "Yes")
+  ) %>%
+  left_join(content_file_creates, by = c("instruction_family", "content_source" = "content_file")) %>%
+  mutate(
+    created_at = replace_na(created_at, "No matching create_file event found"),
+    created_by = replace_na(created_by, "Not visible in extracted event set")
+  ) %>%
+  arrange(post_time)
 
-  label_df <- node_df %>%
-    filter(highlight | degree >= quantile(degree, 0.65))
-
-  ggplot() +
-    geom_curve(
-      data = edge_plot,
-      aes(x = x, y = y, xend = xend, yend = yend, linewidth = weight),
-      curvature = 0.12,
-      alpha = 0.38,
-      color = "#4E79A7",
-      arrow = arrow(type = "closed", length = grid::unit(0.08, "inches"))
-    ) +
-    geom_point(
-      data = node_df,
-      aes(x = x, y = y, size = degree, fill = highlight),
-      shape = 21,
-      color = "#333333",
-      alpha = 0.95
-    ) +
-    geom_text_repel(
-      data = label_df,
-      aes(x = x, y = y, label = str_trunc(label, 18)),
-      size = 3,
-      min.segment.length = 0,
-      seed = 608
-    ) +
-    scale_fill_manual(values = c("FALSE" = "#F2F2F2", "TRUE" = "#E15759")) +
-    scale_size_continuous(range = c(3, 9)) +
-    scale_linewidth_continuous(range = c(0.2, 1.4)) +
-    labs(title = title, subtitle = subtitle) +
-    theme_void() +
-    theme(
-      legend.position = "none",
-      plot.title = element_text(face = "bold"),
-      plot.subtitle = element_text(color = "#555555")
-    )
-}
-
-plot_edge_network(
-  swift_edges,
-  highlight_nodes = c("person:emma_harbor", "person:john_windward", "person:chloe_ballast"),
-  title = "SwiftWren instruction propagation network",
-  subtitle = "Edges represent queue_subordinate_task instructions to read SwiftWren_further_instructions.md."
+DT::datatable(
+  content_origin_table,
+  rownames = FALSE,
+  options = list(pageLength = 5, scrollX = TRUE),
+  caption = "Evidence for the probable origin of the anomalous post contents"
 )
 ```
 
-The network shows that `SwiftWren_further_instructions.md` was not a one-off instruction. It circulated repeatedly among agents before the final SaidIt post. John Windward is the visible poster, but Chloe Ballast is the direct upstream agent and Emma Harbor's agent is the source creator recorded for `SwiftWren.txt`.
+::: viz-note
+The log does not expose the full text inside the suspicious `.txt` files, so the safest interpretation is operational: the anomalous posts mean that John Windward's agent published the raw file source named in `content_source`. The probable content is the content of `SwiftWren.txt`; the wording cannot be reconstructed beyond that from the provided event log alone.
+:::
 
-# 5 System Overview
+# 3: Q1 Detailed Chain and Q2 Content Origin
 
-## 5.1 Organisational Context of the Incident
+## What suspicious pattern repeats before the target event?
 
 ```{r}
-incident_people <- unique(c(
-  "person:emma_harbor",
-  swift_exact_path$from,
-  swift_exact_path$to
-))
-
-incident_org_tbl <- org_people %>%
-  filter(id %in% incident_people) %>%
+#| label: v07-signal-timeline
+#| fig-height: 5.6
+signal_events <- events_clean %>%
+  filter(instruction_family %in% suspicious_families, !is.na(signal_type)) %>%
   mutate(
-    incident_role = case_when(
-      id == "person:emma_harbor" ~ "Created SwiftWren.txt",
-      id == "person:john_windward" ~ "Final poster",
-      id == "person:chloe_ballast" ~ "Direct upstream sender",
-      id == "person:daniel_gangway" ~ "Late-stage sender",
-      TRUE ~ "Propagation chain participant"
+    instruction_family = factor(instruction_family, levels = suspicious_families),
+    signal_type = factor(signal_type, levels = names(base_colors))
+  )
+
+ggplot(signal_events, aes(timestamp, signal_type, color = signal_type)) +
+  geom_point(alpha = 0.75, size = 1.8) +
+  facet_wrap(~ instruction_family, ncol = 1, scales = "free_x") +
+  geom_vline(xintercept = as.numeric(target_time), color = "#e63946", linewidth = 0.7) +
+  scale_color_manual(values = base_colors, na.translate = FALSE) +
+  labs(title = "Repeating suspicious signal pattern by file family", x = NULL, y = NULL, color = "Signal")
+```
+
+::: viz-note
+HiddenOrca, MellowOtter, and SwiftWren all contain instruction handoffs followed by file-sourced publication and deletion activity. SwiftWren stands out because its handoff sequence is longer before it reaches the same endpoint pattern.
+:::
+
+```{r}
+#| label: v08-family-fingerprint
+#| fig-height: 4.9
+family_fingerprint <- signal_events %>%
+  count(instruction_family, signal_type)
+
+ggplot(family_fingerprint, aes(signal_type, instruction_family, fill = n)) +
+  geom_tile(color = "white") +
+  geom_text(aes(label = n), color = "#1b2a38", fontface = "bold") +
+  scale_fill_gradient(low = "#f7fbff", high = "#2a6f97") +
+  labs(title = "Incident fingerprint: SwiftWren has far more handoffs", x = NULL, y = NULL, fill = "Events") +
+  theme(axis.text.x = element_text(angle = 25, hjust = 1))
+```
+
+::: viz-note
+The three suspicious families share similar endpoint signals, including file-sourced posting and cleanup. The main difference is the instruction-handoff count, where SwiftWren is much larger than HiddenOrca and MellowOtter.
+:::
+
+```{r}
+#| label: v09-propagation-growth
+#| fig-height: 5.8
+family_metrics <- signal_events %>%
+  filter(instruction_family %in% suspicious_families) %>%
+  group_by(instruction_family) %>%
+  summarise(
+    first_seen = min(timestamp, na.rm = TRUE),
+    last_seen = max(timestamp, na.rm = TRUE),
+    duration_hours = as.numeric(difftime(last_seen, first_seen, units = "hours")),
+    unique_agents = n_distinct(actor[!is.na(actor)]),
+    handoffs = sum(signal_type == "Instruction handoff", na.rm = TRUE),
+    deletes = sum(signal_type == "Evidence deletion", na.rm = TRUE),
+    .groups = "drop"
+  )
+
+family_handoff_curve <- signal_events %>%
+  filter(signal_type == "Instruction handoff") %>%
+  arrange(instruction_family, timestamp) %>%
+  group_by(instruction_family) %>%
+  mutate(
+    hours_since_first = as.numeric(difftime(timestamp, min(timestamp), units = "hours")),
+    cumulative_handoffs = row_number()
+  ) %>%
+  ungroup()
+
+ggplot(family_handoff_curve, aes(hours_since_first, cumulative_handoffs, color = instruction_family)) +
+  geom_step(linewidth = 1.05) +
+  geom_point(size = 1.6, alpha = 0.75) +
+  scale_y_continuous(labels = comma) +
+  labs(
+    title = "SwiftWren does not just end the same way; it grows much longer upstream",
+    x = "Hours since first instruction handoff",
+    y = "Cumulative handoffs",
+    color = "Family"
+  )
+```
+
+::: viz-note
+HiddenOrca and MellowOtter reach John after relatively short handoff chains. SwiftWren continues circulating for much longer and accumulates far more handoffs before ending at the same public-post endpoint.
+:::
+
+## Who participates in the suspicious workflow?
+
+```{r}
+#| label: v10-actor-role-signature
+#| fig-height: 7.2
+actor_role_counts <- signal_events %>%
+  mutate(
+    actor_label_short = short_label(actor),
+    signal_group = case_when(
+      signal_type == "Instruction handoff" ~ "Relay handoffs",
+      signal_type %in% c("File-sourced SaidIt post", "Evidence deletion") ~ "Endpoint post/delete",
+      signal_type %in% c("Create content file", "Read instruction file") ~ "File staging",
+      TRUE ~ "Other"
     )
   ) %>%
-  select(Person = label, Title = title, Department = department, `Incident role` = incident_role) %>%
-  arrange(`Incident role`, Person)
+  filter(signal_group != "Other") %>%
+  count(actor_label_short, signal_group, name = "events")
 
-datatable(
-  incident_org_tbl,
-  rownames = FALSE,
-  options = list(pageLength = 10, scrollX = TRUE),
-  caption = "People and departments appearing in the SwiftWren incident chain"
-)
-```
-
-```{r}
-incident_dept_counts <- incident_org_tbl %>%
-  count(Department, sort = TRUE)
-
-dept_plot <- ggplot(incident_dept_counts, aes(
-  x = reorder(Department, n),
-  y = n,
-  fill = Department,
-  text = paste0(Department, "<br>", n, " people in incident chain")
-)) +
-  geom_col(width = 0.7) +
-  coord_flip() +
-  scale_y_continuous(breaks = pretty_breaks()) +
-  labs(
-    x = NULL,
-    y = "People in chain",
-    title = "Departments represented in the incident path"
-  ) +
-  theme(legend.position = "none")
-
-ggplotly(dept_plot, tooltip = "text")
-```
-
-The final path crosses Products, Information Technologies, Human Resources, Customer Support, and the Executive Suite. This is exactly why a local fix inside John Windward's account alone is weak: the behavior is created by system-wide delegation and content-source posting, not simply by one user's direct action.
-
-## 5.2 SaidIt Posting Baseline
-
-```{r}
-saidit_posts <- events %>%
-  filter(short_name %in% c("post_saidit", "saidit_post")) %>%
-  mutate(
-    post_type = case_when(
-      !is.na(content_source) ~ "Content-source post",
-      !is.na(content) ~ "Plain text post",
-      TRUE ~ "Task log / no content"
-    ),
-    poster = coalesce(person, poster_id, normalise_actor(primary_party))
+actor_role_summary <- actor_role_counts %>%
+  group_by(actor_label_short) %>%
+  summarise(
+    total = sum(events),
+    endpoint_events = sum(events[signal_group == "Endpoint post/delete"], na.rm = TRUE),
+    relay_events = sum(events[signal_group == "Relay handoffs"], na.rm = TRUE),
+    .groups = "drop"
   )
 
-saidit_type_daily <- saidit_posts %>%
-  count(date, post_type)
+top_role_actors <- actor_role_summary %>%
+  arrange(desc(endpoint_events > 0), desc(endpoint_events), desc(total)) %>%
+  slice_head(n = 16) %>%
+  pull(actor_label_short)
 
-saidit_plot <- ggplot(saidit_type_daily, aes(
-  x = date,
-  y = n,
-  color = post_type,
-  text = paste0(date, "<br>", post_type, "<br>", n, " SaidIt events")
-)) +
-  geom_line(linewidth = 0.8) +
-  geom_point(size = 2) +
-  geom_vline(xintercept = as.numeric(as_date(key_time)), color = "#E15759", linewidth = 0.9) +
-  scale_color_manual(values = c(
-    "Plain text post" = "#4E79A7",
-    "Content-source post" = "#E15759",
-    "Task log / no content" = "#9C755F"
-  )) +
-  labs(
-    x = NULL,
-    y = "SaidIt events",
-    color = "Post type",
-    title = "SaidIt posts by content structure",
-    subtitle = "The anomalous cases are content-source posts, not normal text posts."
+actor_role_plot <- actor_role_counts %>%
+  filter(actor_label_short %in% top_role_actors) %>%
+  complete(
+    actor_label_short,
+    signal_group = c("Relay handoffs", "File staging", "Endpoint post/delete"),
+    fill = list(events = 0)
+  ) %>%
+  left_join(actor_role_summary, by = "actor_label_short") %>%
+  mutate(
+    actor_label_short = fct_reorder(actor_label_short, endpoint_events * 1000 + total),
+    signal_group = factor(signal_group, levels = c("Relay handoffs", "File staging", "Endpoint post/delete"))
+  )
+
+ggplot(actor_role_plot, aes(signal_group, actor_label_short)) +
+  geom_tile(fill = "#f8fafc", color = "white", linewidth = 0.7) +
+  geom_point(
+    data = actor_role_plot %>% filter(events > 0),
+    aes(size = events, fill = signal_group),
+    shape = 21,
+    color = "#1f2933",
+    stroke = 0.35,
+    alpha = 0.95
   ) +
-  theme(legend.position = "bottom")
-
-ggplotly(saidit_plot, tooltip = "text")
+  geom_text(
+    data = actor_role_plot %>% filter(events > 0),
+    aes(label = events),
+    color = "white",
+    fontface = "bold",
+    size = 3
+  ) +
+  scale_fill_manual(values = c(
+    "Relay handoffs" = "#2a6f97",
+    "File staging" = "#f77f00",
+    "Endpoint post/delete" = "#d62828"
+  )) +
+  scale_size_continuous(range = c(5, 16), breaks = pretty_breaks(), name = "Events") +
+  labs(
+    title = "John Windward is an endpoint actor; others mainly relay instructions",
+    x = NULL,
+    y = NULL,
+    fill = "Role in workflow"
+  ) +
+  theme(panel.grid = element_blank())
 ```
 
-Normal SaidIt posts carry a readable `content` field. The problematic posts carry a `content_source` field instead. That difference is the strongest evidence that the malfunction is a file-publication workflow rather than a normal message drafting workflow.
+::: viz-note
+Most listed actors appear mainly in relay-handoff activity, while John Windward is concentrated in endpoint post/delete activity. This indicates that upstream agents move the instruction through the system, and John Windward performs the final public-posting and cleanup role.
+:::
 
-## 5.3 Content-source Incident Family
+## What happens at the endpoint?
 
 ```{r}
-source_run_summary <- source_events %>%
-  group_by(source_stem) %>%
+#| label: v11-endpoint-template-burden
+#| fig-height: 4.9
+endpoint_motif <- purrr::map_dfr(suspicious_families, function(fam) {
+  post <- file_source_posts %>% filter(instruction_family == fam) %>% arrange(timestamp) %>% slice(1)
+  post_time <- post$timestamp[1]
+  fam_events <- events_clean %>% filter(instruction_family == fam)
+  final_handoff <- fam_events %>%
+    filter(event_type == "queue_subordinate_task", str_detect(target, regex("john_windward", ignore_case = TRUE))) %>%
+    arrange(desc(timestamp)) %>%
+    slice(1)
+  check <- events_clean %>%
+    filter(
+      event_type == "saidit_post_check",
+      str_detect(actor, regex("john_windward", ignore_case = TRUE)),
+      timestamp >= post_time - seconds(5),
+      timestamp < post_time
+    ) %>%
+    arrange(desc(timestamp)) %>%
+    slice(1)
+  delete_instruction <- fam_events %>%
+    filter(event_type == "delete_file", str_detect(file_target, "further_instructions")) %>%
+    arrange(timestamp) %>%
+    slice(1)
+  delete_content <- fam_events %>%
+    filter(event_type == "delete_file", file_target == paste0(fam, ".txt")) %>%
+    arrange(timestamp) %>%
+    slice(1)
+  bind_rows(
+    final_handoff %>% transmute(instruction_family = fam, stage = "Final handoff to John", timestamp, event_id),
+    check %>% transmute(instruction_family = fam, stage = "SaidIt check", timestamp, event_id),
+    post %>% transmute(instruction_family = fam, stage = "File-sourced post", timestamp, event_id),
+    delete_instruction %>% transmute(instruction_family = fam, stage = "Delete instruction file", timestamp, event_id),
+    delete_content %>% transmute(instruction_family = fam, stage = "Delete content file", timestamp, event_id)
+  ) %>%
+    mutate(seconds_from_post = as.numeric(difftime(timestamp, post_time, units = "secs")))
+}) %>%
+  mutate(
+    stage = factor(stage, levels = c("Final handoff to John", "SaidIt check", "File-sourced post", "Delete instruction file", "Delete content file")),
+    instruction_family = factor(instruction_family, levels = suspicious_families)
+  )
+
+upstream_burden_badge <- signal_events %>%
+  group_by(instruction_family) %>%
   summarise(
-    first_seen = min(when),
-    last_seen = max(when),
-    file_created = any(short_name == "create_file"),
-    queue_edges = sum(short_name == "queue_subordinate_task"),
-    unique_agents = n_distinct(c(queue_from, queue_to), na.rm = TRUE),
-    deletion_events = sum(short_name == "delete_file"),
+    handoffs = sum(signal_type == "Instruction handoff"),
+    relay_agents = n_distinct(actor[signal_type == "Instruction handoff"]),
+    first_seen = min(timestamp, na.rm = TRUE),
+    post_time = min(timestamp[signal_type == "File-sourced SaidIt post"], na.rm = TRUE),
+    hours_to_post = as.numeric(difftime(post_time, first_seen, units = "hours")),
     .groups = "drop"
   ) %>%
-  left_join(
-    source_posts %>%
-      select(
-        source_stem,
-        final_post_id = id,
-        final_post_time = when,
-        content_source,
-        poster,
-        prior_check_id,
-        check_gap_seconds
-      ),
-    by = "source_stem"
-  ) %>%
   mutate(
-    duration_hours = as.numeric(difftime(final_post_time, first_seen, units = "hours")),
-    source_stem = factor(source_stem, levels = source_posts$source_stem)
-  )
-
-source_run_tbl <- source_run_summary %>%
-  mutate(
-    first_seen = fmt_time(first_seen),
-    final_post_time = fmt_time(final_post_time),
-    duration_hours = round(duration_hours, 1),
-    check_gap_seconds = round(check_gap_seconds, 1),
-    poster = actor_label(poster)
+    stage = "Upstream burden",
+    seconds_from_post = NA_real_,
+    label = paste0(handoffs, " handoffs\n", relay_agents, " relay actors"),
+    fill_key = ifelse(instruction_family == target_family, "High upstream burden", "Lower upstream burden")
   ) %>%
-  select(
-    Source = source_stem,
-    `First seen` = first_seen,
-    `Final post time` = final_post_time,
-    Poster = poster,
-    `Content source` = content_source,
-    `Prior check id` = prior_check_id,
-    `Check gap seconds` = check_gap_seconds,
-    `Queue edges` = queue_edges,
-    `Unique agents` = unique_agents,
-    `Delete events` = deletion_events
+  select(instruction_family, stage, label, fill_key)
+
+endpoint_template_tiles <- endpoint_motif %>%
+  transmute(
+    instruction_family,
+    stage = as.character(stage),
+    label = paste0(ifelse(seconds_from_post > 0, "+", ""), seconds_from_post, "s"),
+    fill_key = as.character(stage)
   )
 
-datatable(
-  source_run_tbl,
-  rownames = FALSE,
-  options = list(pageLength = 5, scrollX = TRUE),
-  caption = "Historical content-source incidents with the same general mechanism"
-)
-```
-
-```{r}
-run_compare_plot <- ggplot(source_run_summary, aes(
-  x = source_stem,
-  y = queue_edges,
-  fill = source_stem,
-  text = paste0(
-    source_stem,
-    "<br>Queue edges: ", queue_edges,
-    "<br>Unique agents: ", unique_agents,
-    "<br>Duration hours: ", round(duration_hours, 1)
-  )
-)) +
-  geom_col(width = 0.68) +
-  geom_text(aes(label = queue_edges), vjust = -0.35, size = 3.5) +
-  scale_fill_manual(values = source_palette) +
-  labs(
-    x = NULL,
-    y = "Instruction handoffs",
-    title = "How much propagation occurred before each file-source post?",
-    subtitle = "SwiftWren is not the first example, but it has the longest observed propagation trail."
-  ) +
-  theme(legend.position = "none")
-
-ggplotly(run_compare_plot, tooltip = "text")
-```
-
-The prior `HiddenOrca` and `MellowOtter` events are important because they show recurrence. Each incident ends with a John Windward SaidIt post whose content is a file source, followed by deletion of the relevant files. The May 17 SwiftWren case is therefore not isolated; it is a repeated behavior pattern.
-
-# 6 What the Posts Mean
-
-## 6.1 Evidence from Message Structure
-
-```{r}
-meaning_evidence_tbl <- source_posts %>%
+endpoint_template_plot <- bind_rows(upstream_burden_badge, endpoint_template_tiles) %>%
   mutate(
-    post_time = fmt_time(when),
-    poster_label = actor_label(poster),
-    interpretation = case_when(
-      source_stem == "HiddenOrca" ~ "Prior file-source post; content not recorded as normal text.",
-      source_stem == "MellowOtter" ~ "Prior file-source post; content not recorded as normal text.",
-      source_stem == "SwiftWren" ~ "Key anomalous post; public content comes from SwiftWren.txt."
-    )
-  ) %>%
-  select(
-    Source = source_stem,
-    `Post id` = id,
-    `Post time` = post_time,
-    Poster = poster_label,
-    Forum = forum,
-    `Content field` = content,
-    `Content source` = content_source,
-    Interpretation = interpretation
+    stage = factor(
+      stage,
+      levels = c("Upstream burden", "Final handoff to John", "SaidIt check", "File-sourced post", "Delete instruction file", "Delete content file")
+    ),
+    instruction_family = factor(instruction_family, levels = suspicious_families)
   )
 
-datatable(
-  meaning_evidence_tbl,
-  rownames = FALSE,
-  options = list(pageLength = 5, scrollX = TRUE),
-  caption = "The anomalous posts are represented as file-backed posts rather than readable text posts"
-)
-```
-
-The log does not expose the literal text inside `SwiftWren.txt`. It records the source file, the handoff instructions, the SaidIt post event, and the deletion. Therefore, the most defensible interpretation is:
-
-- the public post was not a normal drafted SaidIt message;
-- the visible poster was John Windward, but the immediate actor was his agent;
-- the content originated from `SwiftWren.txt`, created earlier by Emma Harbor's agent;
-- the posted text was likely the hidden file's contents, which explains why it appeared as gibberish in a random forum.
-
-## 6.2 Probable Business Topic of the Content
-
-Even though the exact text in `SwiftWren.txt` is not recorded, the surrounding normal posts and advice topics provide a topical baseline. The recurring business vocabulary is not random: it repeatedly references work-order triage, SLA tracking, maintenance requests, resident messaging, package notifications, and property staff updates.
-
-```{r}
-stop_terms <- c(
-  "and", "for", "the", "via", "from", "with", "updates", "update",
-  "tenantthread", "technologies", "general", "status", "alerts", "alert",
-  "fast", "faster", "reliable", "streamline", "on", "time"
-)
-
-normal_post_terms <- saidit_posts %>%
-  filter(!is.na(content)) %>%
-  mutate(content_lower = str_to_lower(content)) %>%
-  select(content_lower) %>%
-  separate_rows(content_lower, sep = "[^a-z0-9]+") %>%
-  rename(term = content_lower) %>%
-  filter(str_length(term) > 2, !term %in% stop_terms) %>%
-  count(term, sort = TRUE) %>%
-  slice_head(n = 18)
-
-term_plot <- ggplot(normal_post_terms, aes(
-  x = reorder(term, n),
-  y = n,
-  fill = n,
-  text = paste0(term, "<br>", n, " normal-post mentions")
-)) +
-  geom_col(width = 0.7) +
-  coord_flip() +
-  scale_fill_gradient(low = "#A0CBE8", high = "#E15759") +
-  labs(
-    x = NULL,
-    y = "Mentions in normal SaidIt text",
-    title = "Topic baseline from normal SaidIt post content",
-    subtitle = "This baseline supports a probable business theme, but not the exact SwiftWren text."
-  ) +
-  theme(legend.position = "none")
-
-ggplotly(term_plot, tooltip = "text")
-```
-
-The probable semantic theme of the hidden content is tenant operations communication, especially maintenance and resident-update workflows. However, because the anomaly used a file source and the file was deleted immediately, the exact posted content cannot be reconstructed from the provided JSON alone.
-
-# 7 Repeat Risk and Intervention
-
-## 7.1 Prior Occurrences
-
-```{r}
-source_milestones <- bind_rows(
-  source_events %>%
-    filter(short_name %in% c("create_file", "queue_subordinate_task", "delete_file")) %>%
-    mutate(
-      milestone = case_when(
-        short_name == "create_file" ~ "File created",
-        short_name == "queue_subordinate_task" ~ "Instruction propagated",
-        short_name == "delete_file" ~ "File deleted",
-        TRUE ~ short_name
-      )
-    ) %>%
-    select(id, when, source_stem, milestone, primary_actor, queue_from, queue_to),
-  source_posts %>%
-    mutate(milestone = "SaidIt file-source post") %>%
-    select(id, when, source_stem, milestone, primary_actor, queue_from, queue_to),
-  post_checks %>%
-    filter(id %in% source_posts$prior_check_id) %>%
-    select(-source_stem) %>%
-    left_join(source_posts %>% select(source_stem, prior_check_id), by = c("id" = "prior_check_id")) %>%
-    mutate(milestone = "SaidIt post check") %>%
-    select(id, when, source_stem, milestone, primary_actor, queue_from, queue_to)
-) %>%
-  mutate(source_stem = factor(source_stem, levels = source_posts$source_stem))
-
-milestone_plot <- ggplot(source_milestones, aes(
-  x = when,
-  y = source_stem,
-  color = milestone,
-  text = paste0(
-    source_stem,
-    "<br>Event ", id,
-    "<br>", fmt_time(when),
-    "<br>", milestone
-  )
-)) +
-  geom_point(alpha = 0.75, size = 2.8) +
-  scale_color_manual(values = c(
-    "File created" = "#59A14F",
-    "Instruction propagated" = "#4E79A7",
-    "SaidIt post check" = "#B07AA1",
-    "SaidIt file-source post" = "#E15759",
-    "File deleted" = "#79706E"
+ggplot(endpoint_template_plot, aes(stage, instruction_family, fill = fill_key)) +
+  geom_tile(color = "white", linewidth = 1.2, height = 0.82) +
+  geom_text(aes(label = label), color = "white", fontface = "bold", size = 3.2, lineheight = 0.9) +
+  scale_fill_manual(values = c(
+    "Lower upstream burden" = "#6c757d",
+    "High upstream burden" = "#d62828",
+    "Final handoff to John" = "#2a9d8f",
+    "SaidIt check" = "#6a4c93",
+    "File-sourced post" = "#e63946",
+    "Delete instruction file" = "#f77f00",
+    "Delete content file" = "#bb3e03"
   )) +
   labs(
+    title = "The endpoint sequence is identical; SwiftWren differs upstream",
     x = NULL,
     y = NULL,
-    color = "Milestone",
-    title = "Historical recurrence of file-source posting behavior",
-    subtitle = "All observed cases eventually pass through the SaidIt posting gateway and end in a file-source post."
+    fill = NULL
   ) +
-  theme(legend.position = "bottom")
-
-ggplotly(milestone_plot, tooltip = "text")
+  theme(
+    panel.grid = element_blank(),
+    axis.text.x = element_text(angle = 25, hjust = 1),
+    legend.position = "none"
+  )
 ```
 
-The concern that the behavior could repeat is well supported. Before SwiftWren, the system already produced file-source posts from `HiddenOrca.txt` and `MellowOtter.txt`. The recurring pattern is:
-
-1.  A hidden or externally generated file source appears.
-2.  Agents propagate a `*_further_instructions.md` file by queuing subordinate read tasks.
-3.  John Windward's agent reaches the SaidIt post workflow.
-4.  SaidIt accepts a content source rather than normal text.
-5.  The source and instruction files are deleted almost immediately.
-
-## 7.2 Intervention Analysis
+::: viz-note
+All three incidents end with the same last-mile sequence: final handoff to John, SaidIt check, file-sourced post, instruction-file deletion, and content-file deletion. SwiftWren differs because the upstream burden badge is much larger before this identical endpoint sequence begins.
+:::
 
 ```{r}
-intervention_tbl <- tribble(
-  ~Intervention_point, ~Evidence_from_data, ~Tradeoff,
-  "File creation", "SwiftWren.txt is created by Emma Harbor's agent, but HiddenOrca lacks a visible create_file record in this log.", "May miss cases where files already exist or are created outside the observed window.",
-  "Subordinate task propagation", "Every incident involves many queue_subordinate_task events for *_further_instructions.md.", "Broad control point; can disrupt legitimate agent-to-agent delegation.",
-  "SaidIt post check", "Each bad post has a saidit_post_check within seconds before the public file-source post.", "Narrow and late, but it directly controls publication risk.",
-  "Post-event deletion", "The files are deleted immediately after the post.", "Useful for audit alerts, but too late to prevent publication."
-)
-
-datatable(
-  intervention_tbl,
-  rownames = FALSE,
-  options = list(pageLength = 4, scrollX = TRUE),
-  caption = "Candidate intervention points"
-)
-```
-
-```{r}
-gateway_plot <- source_posts %>%
-  mutate(
-    source_stem = factor(source_stem, levels = source_stem),
-    check_gap_seconds = round(check_gap_seconds, 1)
+#| label: v12-upstream-burden
+#| fig-height: 5.8
+endpoint_burden <- signal_events %>%
+  group_by(instruction_family) %>%
+  summarise(
+    `Instruction handoffs` = sum(signal_type == "Instruction handoff"),
+    `Unique relay agents` = n_distinct(actor[signal_type == "Instruction handoff"]),
+    `Duration before post (hours)` = as.numeric(difftime(
+      min(timestamp[signal_type == "File-sourced SaidIt post"], na.rm = TRUE),
+      min(timestamp[signal_type == "Instruction handoff"], na.rm = TRUE),
+      units = "hours"
+    )),
+    .groups = "drop"
   ) %>%
-  ggplot(aes(
-    x = source_stem,
-    y = check_gap_seconds,
-    fill = source_stem,
-    text = paste0(
-      source_stem,
-      "<br>Post id: ", id,
-      "<br>Prior check id: ", prior_check_id,
-      "<br>Seconds from check to post: ", check_gap_seconds
-    )
-  )) +
-  geom_col(width = 0.64) +
-  geom_text(aes(label = paste0(check_gap_seconds, "s")), vjust = -0.35, size = 3.5) +
-  scale_fill_manual(values = source_palette) +
-  labs(
-    x = NULL,
-    y = "Seconds from SaidIt check to post",
-    title = "The SaidIt gateway is the narrowest common control point",
-    subtitle = "The public post follows the check almost immediately in each observed incident."
-  ) +
-  theme(legend.position = "none")
+  pivot_longer(-instruction_family, names_to = "metric", values_to = "value") %>%
+  group_by(metric) %>%
+  mutate(
+    value_scaled = scales::rescale(value, to = c(0.2, 1)),
+    value_label = case_when(
+      metric == "Duration before post (hours)" ~ paste0(round(value, 1), " h"),
+      TRUE ~ comma(round(value, 0))
+    ),
+    highlight = instruction_family == target_family
+  ) %>%
+  ungroup() %>%
+  mutate(
+    instruction_family = factor(instruction_family, levels = suspicious_families),
+    metric = factor(metric, levels = c("Instruction handoffs", "Unique relay agents", "Duration before post (hours)"))
+  )
 
-ggplotly(gateway_plot, tooltip = "text")
+ggplot(endpoint_burden, aes(metric, instruction_family)) +
+  geom_tile(fill = "#f8fafc", color = "white", linewidth = 0.9) +
+  geom_point(aes(size = value_scaled, fill = highlight), shape = 21, color = "#1f2933", stroke = 0.45) +
+  geom_text(aes(label = value_label), fontface = "bold", size = 3.1, color = "white") +
+  scale_fill_manual(values = c(`FALSE` = "#8aa1b1", `TRUE` = "#d62828"), guide = "none") +
+  scale_size_continuous(range = c(7, 21), guide = "none") +
+  labs(
+    title = "SwiftWren is the outlier before the endpoint, not at the endpoint",
+    x = NULL,
+    y = NULL
+  ) +
+  theme(panel.grid = element_blank(), axis.text.x = element_text(angle = 18, hjust = 1))
 ```
 
-The recommended single intervention point is the `saidit_post_check` gateway. It should reject or quarantine any SaidIt post request where:
+::: viz-note
+SwiftWren is the largest case on all upstream metrics: it has the most instruction handoffs, involves more relay agents, and lasts longer before the file-sourced post. The endpoint itself is not the outlier; the upstream propagation is.
+:::
 
-- the post uses `content_source` instead of an explicit `content` string;
-- the source matches a hidden generated file such as `*.txt`;
-- the same agent recently read a `*_further_instructions.md` file;
-- the posting agent is acting without a recent human-authored task approving public publication.
+# 4: Q3 Prior Occurrences and Intervention
 
-This point is likely effective because all three observed bad posts pass through it seconds before publication. It is also less disruptive than blocking all agent delegation, because normal internal tasking can continue while public posting is guarded.
+## Who are the strongest relays?
 
-# 8 Conclusion
+```{r}
+#| label: v13-relay-role-balance
+#| fig-height: 6.2
+relay_balance <- handoff_edges %>%
+  filter(instruction_family %in% suspicious_families) %>%
+  group_by(instruction_family, agent = from) %>%
+  summarise(sent = n(), .groups = "drop") %>%
+  full_join(
+    handoff_edges %>%
+      filter(instruction_family %in% suspicious_families) %>%
+      group_by(instruction_family, agent = to) %>%
+      summarise(received = n(), .groups = "drop"),
+    by = c("instruction_family", "agent")
+  ) %>%
+  mutate(
+    sent = replace_na(sent, 0L),
+    received = replace_na(received, 0L),
+    total = sent + received,
+    agent_label = short_label(agent),
+    endpoint_agent = str_detect(agent, regex("john_windward", ignore_case = TRUE))
+  ) %>%
+  group_by(instruction_family) %>%
+  slice_max(total, n = 10, with_ties = FALSE) %>%
+  ungroup()
 
-The anomalous May 17 SaidIt post was made by John Windward's agent, but the evidence points to a system malfunction rather than an ordinary John-authored message. `SwiftWren.txt` was created earlier by Emma Harbor's agent, its further-instruction file circulated through a multi-agent delegation network, and the final chain passed from Daniel Gangway to Chloe Ballast to John Windward. John's agent then checked the SaidIt posting path, posted `SwiftWren.txt`, and deleted the related files immediately afterward.
+ggplot(relay_balance, aes(received, sent, size = total, color = instruction_family)) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "grey70") +
+  geom_point(alpha = 0.78) +
+  geom_text(aes(label = agent_label), nudge_y = 0.8, size = 3, show.legend = FALSE) +
+  facet_wrap(~ instruction_family, scales = "free") +
+  scale_size_continuous(range = c(3, 11)) +
+  labs(
+    title = "Relay roles are different: some agents receive, others actively forward",
+    x = "Handoffs received",
+    y = "Handoffs sent",
+    size = "Total",
+    color = "Family"
+  )
+```
 
-The post most likely "means" that a hidden generated file was accidentally or improperly published as public forum content. The dataset does not preserve the literal `SwiftWren.txt` text, so the exact text cannot be recovered. The probable topic family is tenant operations communication, especially work-order triage, SLA tracking, resident messaging, maintenance requests, and package notifications.
+::: viz-note
+The relay balance separates agents that mainly receive instructions from agents that actively forward them onward. Actors with high forwarding counts are stronger propagation relays and are more important for interrupting future spread.
+:::
 
-The behavior can repeat. `HiddenOrca` and `MellowOtter` show prior instances of the same file-source posting pattern. The best single intervention is to strengthen the SaidIt post-check gateway so that file-backed posts require explicit validation before publication.
+## Network views
+
+```{r}
+#| label: v15-swift-network
+swift_edge_agg <- swift_edges %>%
+  count(from, to, name = "weight") %>%
+  mutate(
+    label = ifelse(weight > 1, paste0("x", weight), ""),
+    title = paste0("<b>", entity_label(from), "</b> → <b>", entity_label(to), "</b><br>SwiftWren handoffs: ", weight),
+    arrows = "to",
+    width = pmin(1 + weight, 7),
+    color = ifelse(str_detect(to, regex("john_windward", ignore_case = TRUE)), "#e63946", "#457b9d")
+  )
+
+post_edge <- tibble(
+  from = endpoint_node,
+  to = "system:saidit",
+  weight = 1,
+  label = "post",
+  title = "John Windward's agent posts SwiftWren.txt to SaidIt",
+  arrows = "to",
+  width = 5,
+  color = "#e63946"
+)
+
+swift_network_edges <- bind_rows(swift_edge_agg, post_edge)
+
+swift_nodes <- tibble(id = unique(c(swift_network_edges$from, swift_network_edges$to))) %>%
+  mutate(
+    label = case_when(
+      id == "system:saidit" ~ "SaidIt",
+      TRUE ~ short_label(id)
+    ),
+    group = case_when(
+      id == endpoint_node ~ "Endpoint agent",
+      id == "system:saidit" ~ "External platform",
+      TRUE ~ "Relay agent"
+    ),
+    value = case_when(
+      id == endpoint_node ~ 38,
+      id == "system:saidit" ~ 34,
+      TRUE ~ 18
+    ),
+    title = paste0("<b>", label, "</b><br>", group)
+  )
+
+visNetwork(
+  swift_nodes,
+  swift_network_edges %>% select(from, to, label, title, arrows, width, color),
+  height = "780px", width = "100%"
+) %>%
+  visNodes(font = list(size = 15), shadow = TRUE) %>%
+  visEdges(smooth = list(enabled = TRUE, type = "dynamic"), arrows = "to") %>%
+  visGroups(groupname = "Relay agent", color = list(background = "#8ecae6", border = "#457b9d")) %>%
+  visGroups(groupname = "Endpoint agent", color = list(background = "#e63946", border = "#9b2226")) %>%
+  visGroups(groupname = "External platform", shape = "database", color = list(background = "#9b5de5", border = "#5a189a")) %>%
+  visOptions(highlightNearest = list(enabled = TRUE, hover = TRUE), nodesIdSelection = TRUE, selectedBy = "group") %>%
+  visPhysics(
+    solver = "repulsion",
+    repulsion = list(nodeDistance = 330, springLength = 310, damping = 0.85),
+    stabilization = list(enabled = TRUE, iterations = 600)
+  ) %>%
+  visLayout(randomSeed = 608) %>%
+  visInteraction(navigationButtons = TRUE)
+```
+
+::: viz-note
+SwiftWren handoffs circulate among multiple relay agents before converging on John Windward. The final edge from John Windward to SaidIt marks the transition from internal multi-agent activity to the external public post.
+:::
+
+```{r}
+#| label: v16-cross-family-network
+cross_edges <- handoff_edges %>%
+  count(instruction_family, from, to, name = "weight") %>%
+  filter(weight >= 1) %>%
+  mutate(
+    label = instruction_family,
+    title = paste0("<b>", instruction_family, "</b><br>", entity_label(from), " → ", entity_label(to), "<br>handoffs: ", weight),
+    arrows = "to",
+    width = pmin(1 + weight, 6),
+    color = case_when(
+      instruction_family == "SwiftWren" ~ "#e63946",
+      instruction_family == "HiddenOrca" ~ "#457b9d",
+      instruction_family == "MellowOtter" ~ "#2a9d8f",
+      TRUE ~ "#6c757d"
+    )
+  )
+
+cross_nodes <- tibble(id = unique(c(cross_edges$from, cross_edges$to))) %>%
+  mutate(
+    label = short_label(id),
+    group = ifelse(str_detect(id, regex("john_windward", ignore_case = TRUE)), "Endpoint agent", "Agent"),
+    value = ifelse(group == "Endpoint agent", 34, 16),
+    title = label
+  )
+
+visNetwork(
+  cross_nodes,
+  cross_edges %>% select(from, to, label, title, arrows, width, color),
+  height = "760px", width = "100%"
+) %>%
+  visNodes(font = list(size = 14), shadow = TRUE) %>%
+  visEdges(smooth = list(enabled = TRUE, type = "dynamic"), arrows = "to") %>%
+  visGroups(groupname = "Agent", color = list(background = "#c7d8e8", border = "#457b9d")) %>%
+  visGroups(groupname = "Endpoint agent", color = list(background = "#e63946", border = "#9b2226")) %>%
+  visOptions(highlightNearest = list(enabled = TRUE, hover = TRUE), nodesIdSelection = TRUE, selectedBy = "group") %>%
+  visPhysics(
+    solver = "repulsion",
+    repulsion = list(nodeDistance = 310, springLength = 280, damping = 0.85),
+    stabilization = list(enabled = TRUE, iterations = 600)
+  ) %>%
+  visLayout(randomSeed = 610) %>%
+  visInteraction(navigationButtons = TRUE)
+```
+
+::: viz-note
+HiddenOrca, MellowOtter, and SwiftWren move through overlapping parts of the agent network. SwiftWren is the largest instance, but the repeated cross-family paths indicate a reusable propagation mechanism rather than a one-off event.
+:::
+
+## Incident comparison and intervention
+
+```{r}
+#| label: incident-signature-table
+incident_signature <- family_metrics %>%
+  left_join(family_fingerprint %>% pivot_wider(names_from = signal_type, values_from = n, values_fill = 0), by = "instruction_family") %>%
+  arrange(desc(handoffs)) %>%
+  mutate(
+    duration_hours = round(duration_hours, 2),
+    first_seen = format(first_seen, "%b %d %H:%M"),
+    last_seen = format(last_seen, "%b %d %H:%M")
+  )
+
+DT::datatable(
+  incident_signature,
+  options = list(pageLength = 5, scrollX = TRUE),
+  caption = "Incident signatures by suspicious file family"
+)
+```
+
+**Key findings**
+
+- The John Windward SaidIt post is unusual because it is **file-sourced** from `SwiftWren.txt`, not a normal business-content post.
+- The same file-source pattern appears earlier in HiddenOrca and MellowOtter, but SwiftWren has the largest propagation footprint.
+- John Windward is best interpreted as the **public-posting endpoint**, while upstream relay agents move the instruction through the system.
+- The strongest control point is not the final SaidIt post itself, but the earlier `queue_subordinate_task` / `read_file` handoff layer.
+- Recommended intervention: **Agent Task Execution Guardrail** that blocks or quarantines delegated reads of `*_further_instructions.md` unless explicitly approved.
+
+# 5: Limitations
+
+- The log shows file names and event actions, but not the full text inside hidden files.
+- Causal links are inferred from timestamps, actors, and file-family continuity.
+- Network views are filtered to suspicious propagation, so they are not full enterprise graphs.

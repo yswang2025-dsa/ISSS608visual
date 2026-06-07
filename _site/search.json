@@ -142,9 +142,9 @@
   {
     "objectID": "TH_EX02.html",
     "href": "TH_EX02.html",
-    "title": "Take-home Exercise 2: Visual Analytics of a Multi-agent Posting Malfunction",
+    "title": "Take-home Exercise 2: Visual Trace of the SaidIt Anomaly",
     "section": "",
-    "text": "This take-home exercise investigates an anomalous SaidIt post made by John Windward’s agent. The post is described in the challenge brief as occurring on May 17, 2046 at 4:21am. Rather than treating the event as a single isolated post, this report uses visual analytics to trace the surrounding system activity: file creation, file reading, subordinate task delegation, post checks, public posting, and cleanup.\nAll event times in this report are converted to the challenge local timezone, America/Los_Angeles, so that the event log aligns with the task statement.\n\n\n\nThe report answers three questions:\n\nHow was the anomalous SaidIt post made, and what exact chain of people, agents, and systems led to it?\nWhat do the anomalous posts mean, and where did their content originate?\nCould this behavior repeat, and where should one intervention be placed to reduce the risk?\n\n\n\n\nThe analysis follows the same network-and-time oriented structure used in the reference layout: first establish a baseline, then isolate the subnetwork of interest, then compare historical recurrences, and finally justify an intervention point.\n\n\n\n\n\nflowchart LR\n    A(\"MC2 event timeline\") --&gt; B[\"Normalize event log\"]\n    C(\"TenantThread org chart\") --&gt; D[\"Attach departments and roles\"]\n    B --&gt; E[\"System baseline\"]\n    B --&gt; F[\"SwiftWren incident chain\"]\n    B --&gt; G[\"Historical file-source incidents\"]\n    D --&gt; F\n    E --&gt; H[\"Contextual visual overview\"]\n    F --&gt; I[\"Exact chain of events\"]\n    G --&gt; J[\"Repeat-risk comparison\"]\n    I --&gt; K[\"Recommended intervention\"]\n    J --&gt; K"
+    "text": "Company A’s AI systems administration team needs to explain why an anomalous gibberish post appeared on SaidIt. The post was made by John Windward, and the main analytical task is to determine whether it was an isolated malfunction or the visible endpoint of a repeatable multi-agent workflow.\nThis report treats the event log as a system trace. Instead of starting from the final post alone, the analysis first establishes what normal agent activity looks like, then isolates public posts that are operationally different from ordinary SaidIt activity. The investigation then reconstructs the exact chain that led to the John Windward post, compares it with earlier similar incidents, and identifies where an intervention would most effectively interrupt future recurrence.\nThe visual analytics system uses the provided MC2 activity timeline, the Tenant Thread organization chart, the data description, and the MC2 answer-sheet requirements. The timeline records actions, participants, timestamps, and event-specific details; the organization chart supplies people, teams, and departments for interpreting actors in the workflow. Together, they support both a detailed sequence view and a system-level context view."
   },
   {
     "objectID": "TH_EX02.html#background",
@@ -1314,5 +1314,117 @@
     "title": "MC1 — Multi-Agent Crisis Data",
     "section": "",
     "text": "Agents have many different communications channels available to them, for agent-to-agent, agent-to-person and agent-to-other-system actions. Agents are also empowered to publish social media post with minimal oversight."
+  },
+  {
+    "objectID": "TH_EX02.html#what-events-dominate-the-system",
+    "href": "TH_EX02.html#what-events-dominate-the-system",
+    "title": "Take-home Exercise 2: Visual Trace of the SaidIt Anomaly",
+    "section": "4.1 4.1 What Events Dominate the System?",
+    "text": "4.1 4.1 What Events Dominate the System?\n\n\nShow code\ntop_event_types &lt;- events_clean %&gt;%\n  count(event_type, sort = TRUE) %&gt;%\n  slice_head(n = 12)\n\ntop_event_plot &lt;- ggplot(top_event_types, aes(\n  x = reorder(event_type, n),\n  y = n,\n  fill = if_else(event_type %in% names(pal_event), event_type, \"Other\"),\n  text = paste0(event_type, \"&lt;br&gt;\", fmt_count(n), \" events\")\n)) +\n  geom_col(width = 0.72) +\n  coord_flip() +\n  scale_fill_manual(values = pal_event) +\n  scale_y_continuous(labels = fmt_count) +\n  labs(\n    title = \"Top event types\",\n    x = NULL,\n    y = \"Events\"\n  ) +\n  theme(legend.position = \"none\")\n\nggplotly(top_event_plot, tooltip = \"text\")\n\n\n\n\n\n\nRoutine checks, file actions, and delegated agent tasks dominate the system. This baseline makes the suspicious file-source posts stand out as a small but high-impact pattern."
+  },
+  {
+    "objectID": "TH_EX02.html#when-is-the-system-most-active",
+    "href": "TH_EX02.html#when-is-the-system-most-active",
+    "title": "Take-home Exercise 2: Visual Trace of the SaidIt Anomaly",
+    "section": "4.2 4.2 When Is the System Most Active?",
+    "text": "4.2 4.2 When Is the System Most Active?\n\n\nShow code\nevent_volume &lt;- events_clean %&gt;%\n  count(date, name = \"n\") %&gt;%\n  mutate(series = \"All system events\") %&gt;%\n  bind_rows(\n    events_clean %&gt;%\n      filter(!is.na(signal_type)) %&gt;%\n      count(date, name = \"n\") %&gt;%\n      mutate(series = \"Suspicious signals\")\n  ) %&gt;%\n  mutate(series = factor(series, levels = c(\"All system events\", \"Suspicious signals\")))\n\nvolume_plot &lt;- ggplot(event_volume, aes(\n  x = date,\n  y = n,\n  color = series,\n  text = paste0(series, \"&lt;br&gt;\", date, \"&lt;br&gt;\", fmt_count(n), \" events\")\n)) +\n  geom_line(linewidth = 0.9) +\n  geom_point(size = 1.8) +\n  geom_vline(xintercept = as.numeric(as_date(john_case_time)), color = \"#E15759\", linewidth = 0.9) +\n  facet_wrap(vars(series), scales = \"free_y\", ncol = 1) +\n  scale_color_manual(values = c(\"All system events\" = \"#4E79A7\", \"Suspicious signals\" = \"#E15759\")) +\n  scale_y_continuous(labels = fmt_count) +\n  labs(\n    title = \"Daily activity: baseline vs suspicious signals\",\n    subtitle = \"Free y-axes keep rare suspicious activity visible; red line marks John Windward's anomalous post date.\",\n    x = NULL,\n    y = \"Daily events\",\n    color = NULL\n  ) +\n  theme(legend.position = \"none\")\n\nggplotly(volume_plot, tooltip = \"text\")\n\n\n\n\n\n\nThe anomaly occurs during sustained automated activity, but suspicious signals have a narrower rhythm than the full log. This contrast justifies separating routine volume from file-source behavior."
+  },
+  {
+    "objectID": "TH_EX02.html#when-do-suspicious-signals-cluster",
+    "href": "TH_EX02.html#when-do-suspicious-signals-cluster",
+    "title": "Take-home Exercise 2: Visual Trace of the SaidIt Anomaly",
+    "section": "5.1 5.1 When Do Suspicious Signals Cluster?",
+    "text": "5.1 5.1 When Do Suspicious Signals Cluster?\n\n\nShow code\nsuspicious_events &lt;- events_clean %&gt;%\n  filter(!is.na(signal_type)) %&gt;%\n  mutate(\n    signal_type = factor(signal_type, levels = names(pal_signal)),\n    family_label = replace_na(suspicious_family, \"No file family\")\n  )\n\nsuspicious_hourly &lt;- suspicious_events %&gt;%\n  mutate(signal_hour = floor_date(timestamp, \"hour\")) %&gt;%\n  count(signal_hour, signal_type, name = \"events\")\n\nsuspicious_timeline &lt;- ggplot(suspicious_hourly, aes(\n  x = signal_hour,\n  y = events,\n  color = signal_type,\n  text = paste0(\n    signal_type,\n    \"&lt;br&gt;\", fmt_time(signal_hour),\n    \"&lt;br&gt;\", fmt_count(events), \" events\"\n  )\n)) +\n  geom_line(linewidth = 0.8) +\n  geom_point(alpha = 0.8, size = 1.8) +\n  geom_vline(xintercept = as.numeric(john_case_time), color = \"#E15759\", linewidth = 0.8) +\n  facet_wrap(vars(signal_type), scales = \"free_y\", ncol = 1) +\n  scale_color_manual(values = pal_signal) +\n  scale_y_continuous(labels = fmt_count) +\n  labs(\n    title = \"Suspicious signals over time\",\n    subtitle = \"Hourly aggregation reduces noise while preserving the sequence of propagation, check, post, and cleanup.\",\n    x = NULL,\n    y = \"Events per hour\",\n    color = \"Signal\"\n  ) +\n  theme(legend.position = \"none\")\n\nggplotly(suspicious_timeline, tooltip = \"text\")\n\n\n\n\n\n\nSuspicious behavior forms a sequence rather than a single point event. Propagation activity appears before SaidIt checks and public posts, with cleanup concentrated around the posting window."
+  },
+  {
+    "objectID": "TH_EX02.html#which-actors-appear-most-often",
+    "href": "TH_EX02.html#which-actors-appear-most-often",
+    "title": "Take-home Exercise 2: Visual Trace of the SaidIt Anomaly",
+    "section": "5.2 5.2 Which Actors Appear Most Often?",
+    "text": "5.2 5.2 Which Actors Appear Most Often?\n\n\nShow code\ntop_signal_actors &lt;- suspicious_events %&gt;%\n  count(actor_label, sort = TRUE) %&gt;%\n  slice_head(n = 14) %&gt;%\n  pull(actor_label)\n\nheatmap_data &lt;- suspicious_events %&gt;%\n  filter(actor_label %in% top_signal_actors) %&gt;%\n  count(actor_label, signal_type, name = \"events\") %&gt;%\n  group_by(actor_label) %&gt;%\n  mutate(total = sum(events)) %&gt;%\n  ungroup()\n\nheatmap_plot &lt;- ggplot(heatmap_data, aes(\n  x = signal_type,\n  y = reorder(actor_label, total),\n  fill = events,\n  text = paste0(actor_label, \"&lt;br&gt;\", signal_type, \"&lt;br&gt;\", events, \" events\")\n)) +\n  geom_tile(color = \"white\", linewidth = 0.3) +\n  scale_fill_gradient(low = \"#F1F4F8\", high = \"#E15759\") +\n  labs(\n    title = \"Actor vs suspicious signal type\",\n    x = NULL,\n    y = NULL,\n    fill = \"Events\"\n  ) +\n  theme(axis.text.x = element_text(angle = 30, hjust = 1))\n\nggplotly(heatmap_plot, tooltip = \"text\")\n\n\n\n\n\n\nThe heatmap separates broad propagation actors from public-posting actors. John Windward is important because he appears at the public-facing end of the chain."
+  },
+  {
+    "objectID": "TH_EX02.html#loading-r-packages",
+    "href": "TH_EX02.html#loading-r-packages",
+    "title": "Take-home Exercise 2: Visual Trace of the SaidIt Anomaly",
+    "section": "1.1: Loading R Packages",
+    "text": "1.1: Loading R Packages\nThe setup chunk loads packages for JSON parsing, data wrangling, temporal analysis, static charts, interactive networks, and tables. It also defines helper functions for normalizing actor labels, extracting instruction families, and applying consistent event colors."
+  },
+  {
+    "objectID": "TH_EX02.html#loading-the-data",
+    "href": "TH_EX02.html#loading-the-data",
+    "title": "Take-home Exercise 2: Visual Trace of the SaidIt Anomaly",
+    "section": "1.2: Loading the Data",
+    "text": "1.2: Loading the Data\nAll source files are referenced directly from the data folder in the same ISSS608visual project directory as this QMD file. This avoids hidden absolute paths and keeps the submission portable inside the course project.\n\n\n\nSource files referenced by this report\n\n\n\n\n\n\nsource\npath\n\n\n\n\nMC2 timeline\ndata/MC2 data.json\n\n\nOrganization chart\ndata/org_chart.json\n\n\nData description\ndata/MC2 data description.md\n\n\nAnswer sheet requirements\ndata/VAST Challenge 2026 MC2 Answer Sheet.htm"
+  },
+  {
+    "objectID": "TH_EX02.html#data-health",
+    "href": "TH_EX02.html#data-health",
+    "title": "Take-home Exercise 2: Visual Trace of the SaidIt Anomaly",
+    "section": "1.3: Data Health",
+    "text": "1.3: Data Health\n\n\n185,147Events24Event types241SaidIt posts3File-sourced posts3Suspicious families\n\n\nThe important data feature is that only a small number of public posts are file-sourced. That makes the John Windward case easier to isolate visually."
+  },
+  {
+    "objectID": "TH_EX02.html#what-does-normal-system-activity-look-like",
+    "href": "TH_EX02.html#what-does-normal-system-activity-look-like",
+    "title": "Take-home Exercise 2: Visual Trace of the SaidIt Anomaly",
+    "section": "What does normal system activity look like?",
+    "text": "What does normal system activity look like?\n\n\n\n\n\n\n\n\n\n\nThe event log is dominated by routine automation such as task assignment, file access, email access, and calendar actions. The cumulative line shows that a small set of repeated event types accounts for most system activity, while the suspicious file-posting behavior is buried among lower-volume actions.\n\n\n\n\n\n\n\n\n\n\n\nDaily activity remains high around the target incident marker. The anomalous SaidIt post therefore appears inside normal operating volume rather than during a clear outage or isolated spike.\n\n\n\n\n\n\n\n\n\n\n\nActivity appears across many hours of the day, with repeated bursts rather than a single narrow operating window. This pattern suggests that autonomous actions can continue outside a simple human workday rhythm."
+  },
+  {
+    "objectID": "TH_EX02.html#is-the-john-windward-post-unusual",
+    "href": "TH_EX02.html#is-the-john-windward-post-unusual",
+    "title": "Take-home Exercise 2: Visual Trace of the SaidIt Anomaly",
+    "section": "Is the John Windward post unusual?",
+    "text": "Is the John Windward post unusual?\n\n\n\n\n\n\n\n\n\n\nNormal SaidIt and FleX posts make up most public-posting activity. File-sourced SaidIt posts form only a small slice of the total, which marks them as operationally unusual compared with ordinary text-based posts.\n\n\n\n\n\n\n\n\n\n\n\nThe most frequent words in normal SaidIt posts refer to business operations such as maintenance, requests, vendor work, and resident/property workflows. The anomalous file-sourced post does not follow this visible business-language pattern.\n\n\n\n\n\n\n\n\n\n\n\nNormal-content SaidIt posts are distributed across multiple posters, but file-sourced posts are concentrated in John Windward’s row. This separates John Windward from routine public posters and identifies him as the main public-posting endpoint."
+  },
+  {
+    "objectID": "TH_EX02.html#q2-content-origin-evidence",
+    "href": "TH_EX02.html#q2-content-origin-evidence",
+    "title": "Take-home Exercise 2: Visual Trace of the SaidIt Anomaly",
+    "section": "Q2 content-origin evidence",
+    "text": "Q2 content-origin evidence\n\n\n\n\n\n\n\nThe log does not expose the full text inside the suspicious .txt files, so the safest interpretation is operational: the anomalous posts mean that John Windward’s agent published the raw file source named in content_source. The probable content is the content of SwiftWren.txt; the wording cannot be reconstructed beyond that from the provided event log alone."
+  },
+  {
+    "objectID": "TH_EX02.html#what-suspicious-pattern-repeats-before-the-target-event",
+    "href": "TH_EX02.html#what-suspicious-pattern-repeats-before-the-target-event",
+    "title": "Take-home Exercise 2: Visual Trace of the SaidIt Anomaly",
+    "section": "What suspicious pattern repeats before the target event?",
+    "text": "What suspicious pattern repeats before the target event?\n\n\n\n\n\n\n\n\n\n\nHiddenOrca, MellowOtter, and SwiftWren all contain instruction handoffs followed by file-sourced publication and deletion activity. SwiftWren stands out because its handoff sequence is longer before it reaches the same endpoint pattern.\n\n\n\n\n\n\n\n\n\n\n\nThe three suspicious families share similar endpoint signals, including file-sourced posting and cleanup. The main difference is the instruction-handoff count, where SwiftWren is much larger than HiddenOrca and MellowOtter.\n\n\n\n\n\n\n\n\n\n\n\nHiddenOrca and MellowOtter reach John after relatively short handoff chains. SwiftWren continues circulating for much longer and accumulates far more handoffs before ending at the same public-post endpoint."
+  },
+  {
+    "objectID": "TH_EX02.html#who-participates-in-the-suspicious-workflow",
+    "href": "TH_EX02.html#who-participates-in-the-suspicious-workflow",
+    "title": "Take-home Exercise 2: Visual Trace of the SaidIt Anomaly",
+    "section": "Who participates in the suspicious workflow?",
+    "text": "Who participates in the suspicious workflow?\n\n\n\n\n\n\n\n\n\n\nMost listed actors appear mainly in relay-handoff activity, while John Windward is concentrated in endpoint post/delete activity. This indicates that upstream agents move the instruction through the system, and John Windward performs the final public-posting and cleanup role."
+  },
+  {
+    "objectID": "TH_EX02.html#what-happens-at-the-endpoint",
+    "href": "TH_EX02.html#what-happens-at-the-endpoint",
+    "title": "Take-home Exercise 2: Visual Trace of the SaidIt Anomaly",
+    "section": "What happens at the endpoint?",
+    "text": "What happens at the endpoint?\n\n\n\n\n\n\n\n\n\n\nAll three incidents end with the same last-mile sequence: final handoff to John, SaidIt check, file-sourced post, instruction-file deletion, and content-file deletion. SwiftWren differs because the upstream burden badge is much larger before this identical endpoint sequence begins.\n\n\n\n\n\n\n\n\n\n\n\nSwiftWren is the largest case on all upstream metrics: it has the most instruction handoffs, involves more relay agents, and lasts longer before the file-sourced post. The endpoint itself is not the outlier; the upstream propagation is."
+  },
+  {
+    "objectID": "TH_EX02.html#who-are-the-strongest-relays",
+    "href": "TH_EX02.html#who-are-the-strongest-relays",
+    "title": "Take-home Exercise 2: Visual Trace of the SaidIt Anomaly",
+    "section": "Who are the strongest relays?",
+    "text": "Who are the strongest relays?\n\n\n\n\n\n\n\n\n\n\nThe relay balance separates agents that mainly receive instructions from agents that actively forward them onward. Actors with high forwarding counts are stronger propagation relays and are more important for interrupting future spread."
+  },
+  {
+    "objectID": "TH_EX02.html#network-views",
+    "href": "TH_EX02.html#network-views",
+    "title": "Take-home Exercise 2: Visual Trace of the SaidIt Anomaly",
+    "section": "Network views",
+    "text": "Network views\n\n\n\n\n\n\n\nSwiftWren handoffs circulate among multiple relay agents before converging on John Windward. The final edge from John Windward to SaidIt marks the transition from internal multi-agent activity to the external public post.\n\n\n\n\n\n\n\n\nHiddenOrca, MellowOtter, and SwiftWren move through overlapping parts of the agent network. SwiftWren is the largest instance, but the repeated cross-family paths indicate a reusable propagation mechanism rather than a one-off event."
+  },
+  {
+    "objectID": "TH_EX02.html#incident-comparison-and-intervention",
+    "href": "TH_EX02.html#incident-comparison-and-intervention",
+    "title": "Take-home Exercise 2: Visual Trace of the SaidIt Anomaly",
+    "section": "Incident comparison and intervention",
+    "text": "Incident comparison and intervention\n\n\n\n\n\n\nKey findings\n\nThe John Windward SaidIt post is unusual because it is file-sourced from SwiftWren.txt, not a normal business-content post.\nThe same file-source pattern appears earlier in HiddenOrca and MellowOtter, but SwiftWren has the largest propagation footprint.\nJohn Windward is best interpreted as the public-posting endpoint, while upstream relay agents move the instruction through the system.\nThe strongest control point is not the final SaidIt post itself, but the earlier queue_subordinate_task / read_file handoff layer.\nRecommended intervention: Agent Task Execution Guardrail that blocks or quarantines delegated reads of *_further_instructions.md unless explicitly approved."
   }
 ]
