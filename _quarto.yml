@@ -42,6 +42,14 @@ website:
             href: HO_EX07_2.qmd
           - text: "Hands-on Exercise 8"
             href: HO_EX08.qmd
+          - text: "Hands-on Exercise 9.1"
+            href: HO_EX09_1.qmd
+          - text: "Hands-on Exercise 9.2"
+            href: HO_EX09_2.qmd
+          - text: "Hands-on Exercise 9.3"
+            href: HO_EX09_3.qmd
+          - text: "Hands-on Exercise 10"
+            href: HO_EX10.qmd
       - text: "Take-home Exercise"
         menu:
           - text: "Take-home Exercise 1"
